@@ -44,6 +44,14 @@ class AuthController extends Controller
                 ]);
         }
 
+        if (! $user->isMaster() && ! $user->clinic_profile_id) {
+            return back()
+                ->withInput($request->only('login', 'remember'))
+                ->withErrors([
+                    'login' => 'Akun ini belum terhubung ke klinik mana pun. Hubungi master sistem.',
+                ]);
+        }
+
         if (! Auth::attempt([$field => $login, 'password' => $password], $remember)) {
             return back()
                 ->withInput($request->only('login', 'remember'))

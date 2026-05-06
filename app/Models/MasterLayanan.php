@@ -18,6 +18,7 @@ class MasterLayanan extends Model
         'nama_layanan',
         'simrs_kd_poli',
         'simrs_nm_poli',
+        'is_bpjs_claim_target',
         'urutan_laporan',
         'is_active',
     ];
@@ -26,6 +27,7 @@ class MasterLayanan extends Model
     {
         return [
             'urutan_laporan' => 'integer',
+            'is_bpjs_claim_target' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

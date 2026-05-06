@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClinicProfile;
 use App\Models\PegawaiProfile;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +19,7 @@ class UserManagementController extends Controller
         $editId = $request->integer('edit');
 
         $usersQuery = User::query()
-            ->with('pegawaiProfile')
+            ->with(['pegawaiProfile', 'clinicProfile'])
             ->orderByDesc('is_active')
             ->orderBy('role')
             ->orderBy('name');
@@ -28,6 +29,11 @@ class UserManagementController extends Controller
                 $query->where('name', 'like', '%' . $search . '%')
                     ->orWhere('username', 'like', '%' . $search . '%')
                     ->orWhere('email', 'like', '%' . $search . '%')
+                    ->orWhereHas('clinicProfile', function ($clinicQuery) use ($search) {
+                        $clinicQuery->where('nama_klinik', 'like', '%' . $search . '%')
+                            ->orWhere('nama_pendek', 'like', '%' . $search . '%')
+                            ->orWhere('kode_klinik', 'like', '%' . $search . '%');
+                    })
                     ->orWhereHas('pegawaiProfile', function ($pegawaiQuery) use ($search) {
                         $pegawaiQuery->where('jabatan', 'like', '%' . $search . '%')
                             ->orWhere('unit_kerja', 'like', '%' . $search . '%')
@@ -38,18 +44,25 @@ class UserManagementController extends Controller
 
         $users = $usersQuery->get();
         $editingUser = $editId > 0
-            ? User::query()->with('pegawaiProfile')->find($editId)
+            ? User::query()->with(['pegawaiProfile', 'clinicProfile'])->find($editId)
             : null;
+        $clinicOptions = ClinicProfile::query()
+            ->active()
+            ->orderBy('nama_klinik')
+            ->get();
 
         return view('pages.manajemen-user', [
             'search' => $search,
             'users' => $users,
             'editingUser' => $editingUser,
+            'clinicOptions' => $clinicOptions,
             'stats' => [
                 'total' => User::query()->count(),
+                'master' => User::query()->where('role', 'master')->count(),
                 'admin' => User::query()->where('role', 'admin')->count(),
+                'staff' => User::query()->where('role', 'staff')->count(),
                 'active' => User::query()->where('is_active', true)->count(),
-                'pegawai' => PegawaiProfile::query()->count(),
+                'klinik' => $clinicOptions->count(),
             ],
         ]);
     }
@@ -106,7 +119,13 @@ class UserManagementController extends Controller
                 Rule::unique('users', 'email')->ignore($ignoreId),
             ],
             'password' => $passwordRule,
-            'role' => ['required', 'string', Rule::in(['admin', 'staff'])],
+            'role' => ['required', 'string', Rule::in(['master', 'admin', 'staff'])],
+            'clinic_profile_id' => [
+                Rule::requiredIf(fn () => strtolower((string) $request->input('role')) !== 'master'),
+                'nullable',
+                'integer',
+                'exists:clinic_profiles,id',
+            ],
             'is_active' => ['nullable', 'boolean'],
             'nip' => [
                 'nullable',
@@ -125,6 +144,11 @@ class UserManagementController extends Controller
             'username' => strtolower(trim((string) $data['username'])),
             'email' => strtolower(trim((string) $data['email'])),
             'role' => strtolower(trim((string) $data['role'])),
+            'clinic_profile_id' => strtolower(trim((string) $data['role'])) === 'master'
+                ? null
+                : (filled($data['clinic_profile_id'] ?? null)
+                    ? (int) $data['clinic_profile_id']
+                    : null),
             'is_active' => $request->boolean('is_active'),
         ];
 

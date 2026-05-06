@@ -161,6 +161,7 @@
     }
 
     .form-group input,
+    .form-group select,
     .form-group textarea {
         width: 100%;
         border: 1px solid rgba(148, 163, 184, 0.24);
@@ -179,9 +180,41 @@
     }
 
     .form-group input:focus,
+    .form-group select:focus,
     .form-group textarea:focus {
         border-color: rgba(37, 99, 235, 0.36);
         box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+    }
+
+    .toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        background: rgba(248, 250, 252, 0.92);
+    }
+
+    .toggle-wrap input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+    }
+
+    .toggle-copy strong {
+        display: block;
+        color: #13263f;
+        font-size: 0.84rem;
+        line-height: 1.2;
+    }
+
+    .toggle-copy span {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 0.74rem;
+        line-height: 1.55;
     }
 
     .form-hint,
@@ -237,6 +270,59 @@
         box-shadow: 0 22px 40px rgba(37, 99, 235, 0.26);
     }
 
+    .logo-upload-card {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 96px minmax(0, 1fr);
+        align-items: center;
+        padding: 16px;
+        border: 1px dashed rgba(15, 118, 110, 0.28);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(240, 253, 250, 0.96), rgba(248, 250, 252, 0.98));
+    }
+
+    .logo-upload-preview {
+        display: flex;
+        height: 96px;
+        width: 96px;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: 24px;
+        background: linear-gradient(145deg, #f8fafc, #dbeafe);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
+    .logo-upload-preview img {
+        max-width: 82%;
+        max-height: 82%;
+        object-fit: contain;
+    }
+
+    .logo-upload-fallback {
+        color: #0f766e;
+        font-size: 1.2rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+
+    .logo-upload-copy {
+        min-width: 0;
+    }
+
+    .logo-upload-copy input[type="file"] {
+        padding: 10px 12px;
+        background: #ffffff;
+    }
+
+    .logo-upload-copy p {
+        margin: 0 0 10px;
+        color: #475569;
+        font-size: 0.78rem;
+        line-height: 1.7;
+    }
+
     .profile-stack {
         display: grid;
         gap: 20px;
@@ -273,6 +359,18 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         box-shadow: 0 18px 34px rgba(37, 99, 235, 0.26);
+    }
+
+    .preview-mark.is-logo {
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
+    }
+
+    .preview-mark.is-logo img {
+        max-width: 84%;
+        max-height: 84%;
+        object-fit: contain;
     }
 
     .preview-copy {
@@ -378,9 +476,13 @@
 </style>
 
 @php
+    $currentUser = auth()->user();
+    $canManageCode = $currentUser?->isMaster();
     $profileName = old('nama_klinik', $clinicProfile?->nama_klinik ?: 'Klink Report');
     $profileShortName = old('nama_pendek', $clinicProfile?->nama_pendek ?: $profileName);
     $profileTagline = old('tagline', $clinicProfile?->tagline ?: 'Laporan operasional klinik yang rapi dan terkendali.');
+    $profileCode = old('kode_klinik', $clinicProfile?->kode_klinik ?: '');
+    $profileLogoDataUri = $clinicLogoPreviewDataUri ?? null;
     $previewInitials = collect(preg_split('/\s+/', trim((string) $profileShortName)))
         ->filter()
         ->take(2)
@@ -398,6 +500,7 @@
         </p>
 
         <div class="clinic-meta">
+            <span class="clinic-chip">{{ $profileCode ?: 'Kode klinik belum diatur' }}</span>
             <span class="clinic-chip">{{ $profileShortName ?: 'Nama singkat klinik' }}</span>
             <span class="clinic-chip">{{ old('telepon', $clinicProfile?->telepon ?: 'Kontak klinik') }}</span>
             <span class="clinic-chip">{{ old('jam_pelayanan', $clinicProfile?->jam_pelayanan ?: 'Jam pelayanan klinik') }}</span>
@@ -409,20 +512,73 @@
             <div class="card-head">
                 <div>
                     <h2>Data Umum Klinik</h2>
-                    <p>Form ini dipakai untuk identitas utama aplikasi dan tampilan dashboard.</p>
+                    <p>
+                        {{ $canManageCode ? 'Master bisa memilih klinik aktif, membuat klinik baru, dan mengatur kode klinik dari halaman ini.' : 'Form ini dipakai untuk identitas utama klinik Anda dan tampilan dashboard.' }}
+                    </p>
                 </div>
 
-                <span class="status-pill">{{ $clinicProfile ? 'Sudah Tersimpan' : 'Siap Disimpan' }}</span>
+                <span class="status-pill">
+                    {{ $clinicProfile ? ($clinicProfile->is_active ? 'Aktif' : 'Nonaktif') : 'Siap Disimpan' }}
+                </span>
             </div>
+
+            @if ($showClinicFilter)
+                <div class="card-head" style="margin-top: -4px;">
+                    <form method="GET" action="{{ route('profile-klinik') }}" class="profile-form" style="grid-template-columns: minmax(0, 1fr) auto auto;">
+                        <div class="form-group">
+                            <label for="clinic_id">Klinik Aktif</label>
+                            <select id="clinic_id" name="clinic_id">
+                                @foreach ($clinicOptions as $clinicOption)
+                                    <option value="{{ $clinicOption->id }}" @selected((int) $selectedClinicId === (int) $clinicOption->id)>
+                                        {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="justify-content: flex-end;">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="save-button" style="min-width: 140px;">Tampilkan Klinik</button>
+                        </div>
+
+                        <div class="form-group" style="justify-content: flex-end;">
+                            <label>&nbsp;</label>
+                            <a href="{{ route('profile-klinik', ['mode' => 'create']) }}" class="save-button" style="text-decoration: none; min-width: 130px; background: linear-gradient(135deg, #0f766e, #0ea5a4);">
+                                Klinik Baru
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            @endif
 
             @if (session('success'))
                 <div class="success-banner">{{ session('success') }}</div>
             @endif
 
-            <form method="POST" action="{{ route('profile-klinik.save') }}" class="profile-form">
+            <form method="POST" action="{{ route('profile-klinik.save') }}" class="profile-form" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="profile_mode" value="{{ $isCreateMode ? 'create' : 'edit' }}">
+                <input type="hidden" name="profile_id" value="{{ $clinicProfile?->id }}">
 
-                <div class="form-group span-2">
+                <div class="form-group">
+                    <label for="kode_klinik">Kode Klinik</label>
+                    <input
+                        id="kode_klinik"
+                        type="text"
+                        name="kode_klinik"
+                        value="{{ $profileCode }}"
+                        placeholder="Contoh: KLN001"
+                        @if (! $canManageCode) readonly @endif
+                    >
+                    <div class="form-hint">
+                        {{ $canManageCode ? 'Kode unik ini dipakai untuk scoping semua data klinik di aplikasi.' : 'Kode klinik dikelola oleh user master.' }}
+                    </div>
+                    @error('kode_klinik')
+                        <div class="form-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="form-group {{ $canManageCode ? '' : 'span-2' }}">
                     <label for="nama_klinik">Nama Klinik</label>
                     <input id="nama_klinik" type="text" name="nama_klinik" value="{{ old('nama_klinik', $clinicProfile?->nama_klinik) }}" placeholder="Contoh: Klinik Kasih Ibu Sehat">
                     @error('nama_klinik')
@@ -439,6 +595,29 @@
                     @enderror
                 </div>
 
+                <div class="form-group span-2">
+                    <label for="logo_file">Logo Klinik</label>
+                    <div class="logo-upload-card">
+                        <div class="logo-upload-preview" id="logo-upload-preview">
+                            @if ($profileLogoDataUri)
+                                <img src="{{ $profileLogoDataUri }}" alt="Logo klinik" id="logo-upload-image">
+                            @else
+                                <span class="logo-upload-fallback" id="logo-upload-fallback">{{ $previewInitials ?: 'KR' }}</span>
+                                <img src="" alt="Logo klinik" id="logo-upload-image" hidden>
+                            @endif
+                        </div>
+
+                        <div class="logo-upload-copy">
+                            <p>Upload logo klinik agar tampil lebih profesional di profil dan otomatis masuk ke header PDF laporan.</p>
+                            <input id="logo_file" type="file" name="logo_file" accept=".png,.jpg,.jpeg">
+                            <div class="form-hint">Format yang didukung: PNG atau JPG. Maksimal 2 MB.</div>
+                        </div>
+                    </div>
+                    @error('logo_file')
+                        <div class="form-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="form-group">
                     <label for="tagline">Tagline</label>
                     <input id="tagline" type="text" name="tagline" value="{{ old('tagline', $clinicProfile?->tagline) }}" placeholder="Contoh: Pelayanan hangat, laporan tetap rapi">
@@ -451,6 +630,14 @@
                     <label for="alamat">Alamat Klinik</label>
                     <textarea id="alamat" name="alamat" placeholder="Masukkan alamat lengkap klinik">{{ old('alamat', $clinicProfile?->alamat) }}</textarea>
                     @error('alamat')
+                        <div class="form-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="form-group">
+                    <label for="kecamatan">Kecamatan</label>
+                    <input id="kecamatan" type="text" name="kecamatan" value="{{ old('kecamatan', $clinicProfile?->kecamatan) }}" placeholder="Contoh: Siborongborong">
+                    @error('kecamatan')
                         <div class="form-error">{{ $message }}</div>
                     @enderror
                 </div>
@@ -519,6 +706,20 @@
                     @enderror
                 </div>
 
+                @if ($canManageCode)
+                    <div class="form-group">
+                        <label>Status Klinik</label>
+                        <label class="toggle-wrap">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', $clinicProfile?->is_active ?? true) ? 'checked' : '' }}>
+                            <span class="toggle-copy">
+                                <strong>Klinik aktif</strong>
+                                <span>Klinik nonaktif tidak akan muncul di pilihan input dan laporan.</span>
+                            </span>
+                        </label>
+                    </div>
+                @endif
+
                 <div class="form-group span-2">
                     <label for="deskripsi_singkat">Deskripsi Singkat</label>
                     <textarea id="deskripsi_singkat" name="deskripsi_singkat" placeholder="Ceritakan singkat karakter pelayanan klinik atau fungsi dashboard ini.">{{ old('deskripsi_singkat', $clinicProfile?->deskripsi_singkat) }}</textarea>
@@ -529,8 +730,10 @@
                 </div>
 
                 <div class="form-actions">
-                    <p>Perubahan yang disimpan akan langsung dipakai sebagai identitas utama klinik di tampilan aplikasi.</p>
-                    <button type="submit" class="save-button">Simpan Profile Klinik</button>
+                    <p>
+                        {{ $isCreateMode ? 'Klinik baru yang disimpan akan langsung siap dipakai untuk user, transaksi, dan laporan.' : 'Perubahan yang disimpan akan langsung dipakai sebagai identitas utama klinik di tampilan aplikasi.' }}
+                    </p>
+                    <button type="submit" class="save-button">{{ $isCreateMode ? 'Simpan Klinik Baru' : 'Simpan Profile Klinik' }}</button>
                 </div>
             </form>
         </section>
@@ -543,7 +746,14 @@
                 </div>
 
                 <div class="preview-brand">
-                    <div class="preview-mark">{{ $previewInitials ?: 'KR' }}</div>
+                    <div class="preview-mark {{ $profileLogoDataUri ? 'is-logo' : '' }}" id="preview-brand-mark">
+                        @if ($profileLogoDataUri)
+                            <img src="{{ $profileLogoDataUri }}" alt="Logo klinik" id="preview-brand-image">
+                        @else
+                            <span id="preview-brand-fallback">{{ $previewInitials ?: 'KR' }}</span>
+                            <img src="" alt="Logo klinik" id="preview-brand-image" hidden>
+                        @endif
+                    </div>
                     <div class="preview-copy">
                         <span>Identitas Klinik</span>
                         <strong>{{ $profileShortName ?: $profileName }}</strong>
@@ -567,7 +777,15 @@
 
                     <div class="preview-item">
                         <span>Alamat Singkat</span>
-                        <p>{{ old('alamat', $clinicProfile?->alamat ?: 'Alamat klinik akan tampil di sini.') }}</p>
+                        <p>
+                            {{ old('alamat', $clinicProfile?->alamat ?: 'Alamat klinik akan tampil di sini.') }}
+                            @if (filled(old('kecamatan', $clinicProfile?->kecamatan)))
+                                <br>Kec. {{ old('kecamatan', $clinicProfile?->kecamatan) }}
+                            @endif
+                            @if (filled(old('kota', $clinicProfile?->kota)))
+                                <br>{{ old('kota', $clinicProfile?->kota) }}
+                            @endif
+                        </p>
                     </div>
                 </div>
             </aside>
@@ -587,4 +805,52 @@
         </div>
     </div>
 </div>
+
+<script>
+    (() => {
+        const input = document.getElementById('logo_file');
+        const uploadImage = document.getElementById('logo-upload-image');
+        const uploadFallback = document.getElementById('logo-upload-fallback');
+        const previewMark = document.getElementById('preview-brand-mark');
+        const previewImage = document.getElementById('preview-brand-image');
+        const previewFallback = document.getElementById('preview-brand-fallback');
+
+        if (! input || ! uploadImage || ! previewImage || ! previewMark) {
+            return;
+        }
+
+        input.addEventListener('change', (event) => {
+            const file = event.target.files?.[0];
+
+            if (! file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = typeof reader.result === 'string' ? reader.result : '';
+
+                if (result === '') {
+                    return;
+                }
+
+                uploadImage.src = result;
+                uploadImage.hidden = false;
+                previewImage.src = result;
+                previewImage.hidden = false;
+                previewMark.classList.add('is-logo');
+
+                if (uploadFallback) {
+                    uploadFallback.hidden = true;
+                }
+
+                if (previewFallback) {
+                    previewFallback.hidden = true;
+                }
+            };
+
+            reader.readAsDataURL(file);
+        });
+    })();
+</script>
 @endsection

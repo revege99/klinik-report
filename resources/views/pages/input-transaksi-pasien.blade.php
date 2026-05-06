@@ -34,6 +34,10 @@
         padding: 18px 20px;
     }
 
+    .hero-card.is-master {
+        align-items: center;
+    }
+
     .page-eyebrow {
         margin: 0;
         color: #2563eb;
@@ -54,36 +58,102 @@
         line-height: 1.1;
     }
 
-    .hero-stats {
-        display: grid;
-        min-width: 320px;
-        gap: 8px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .hero-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
     }
 
-    .hero-stat {
-        border-radius: 18px;
-        padding: 10px 12px;
-        background: linear-gradient(180deg, #f8fbff, #eef4ff);
-        border: 1px solid rgba(59, 130, 246, 0.12);
+    .hero-tools.is-master {
+        justify-content: flex-end;
     }
 
-    .hero-stat span {
-        display: block;
+    .hero-filter-form {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .hero-tools.is-master .field-wrap {
+        min-width: 240px;
+        flex: 0 1 280px;
+        gap: 4px;
+    }
+
+    .hero-tools.is-master .field-wrap label {
+        font-size: 0.66rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-tools.is-master .field-wrap select {
+        height: 40px;
+        border-radius: 14px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+
+    .hero-tools.is-master .filter-submit {
+        min-height: 40px;
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 0.76rem;
+    }
+
+    .hero-filter-form .field-wrap {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .hero-update-form {
+        display: flex;
+        align-items: center;
+    }
+
+    .hero-update-form .btn {
+        min-height: 40px;
+        border-radius: 14px;
+        padding-inline: 16px;
+        font-size: 0.76rem;
+        white-space: nowrap;
+    }
+
+    .hero-last-sync {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        padding: 9px 14px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(224, 242, 254, 0.92));
+        border: 1px solid rgba(56, 189, 248, 0.16);
+        color: #1e3a5f;
+    }
+
+    .hero-last-sync span {
         color: #64748b;
-        font-size: 0.61rem;
+        font-size: 0.62rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
 
-    .hero-stat strong {
-        display: block;
-        margin-top: 5px;
-        color: #1e293b;
-        font-size: 0.95rem;
+    .hero-last-sync strong {
+        color: #0f172a;
+        font-size: 0.82rem;
         font-weight: 700;
-        line-height: 1;
+        line-height: 1.2;
+    }
+
+    .hero-last-sync small {
+        color: #475569;
+        font-size: 0.72rem;
+        line-height: 1.4;
     }
 
     .filter-card,
@@ -127,6 +197,44 @@
         color: #334155;
         font-size: 0.84rem;
         font-weight: 700;
+    }
+
+    .component-code {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+        font-size: 0.67rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        vertical-align: middle;
+    }
+
+    .component-side {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        vertical-align: middle;
+    }
+
+    .component-side.is-debet {
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+    }
+
+    .component-side.is-kredit {
+        background: rgba(249, 115, 22, 0.14);
+        color: #c2410c;
     }
 
     .field-wrap input,
@@ -726,8 +834,8 @@
             align-items: start;
         }
 
-        .hero-stats {
-            min-width: 0;
+        .hero-tools {
+            justify-content: flex-start;
         }
 
         .modal-summary,
@@ -765,6 +873,17 @@
             justify-content: stretch;
         }
 
+        .hero-tools,
+        .hero-tools.is-master {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .hero-filter-form {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
         .tab-filter-form {
             width: 100%;
             min-width: 0;
@@ -778,12 +897,16 @@
             flex: 1 1 180px;
         }
 
+        .hero-tools.is-master .field-wrap {
+            min-width: 0;
+            flex: 1 1 220px;
+        }
+
         .tab-button {
             justify-content: center;
             flex: 1 1 100%;
         }
 
-        .hero-stats,
         .modal-summary,
         .modal-grid {
             grid-template-columns: 1fr;
@@ -817,29 +940,80 @@
 @php
     $formattedSelectedDate = \Carbon\Carbon::parse($selectedDate)->format('d/m/Y');
     $formattedDataMonth = \Carbon\Carbon::createFromFormat('Y-m', $selectedDataMonth)->locale('id')->translatedFormat('F Y');
+    $canEditOperationalData = auth()->user()?->canEditOperationalData();
+    $isMasterTransaksiView = auth()->user()?->isMaster();
+    $displayTimezone = config('app.display_timezone', 'Asia/Jakarta');
+    $lastRekapUpdateDisplay = $lastRekapUpdate?->synced_at?->copy()->timezone($displayTimezone);
+    $lastRekapUpdateLabel = $lastRekapUpdateDisplay?->locale('id')->translatedFormat('d M Y H:i');
 @endphp
 
 <div class="transaksi-shell">
-    <section class="hero-card">
+    <section class="hero-card {{ $isMasterTransaksiView ? 'is-master' : '' }}">
         <div class="hero-copy">
             <p class="page-eyebrow">Data Transaksi</p>
             <h1>Transaksi Pasien</h1>
         </div>
 
-        <div class="hero-stats">
-            <article class="hero-stat">
-                <span>Tanggal Aktif</span>
-                <strong>{{ $formattedSelectedDate }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Data SIK</span>
-                <strong>{{ $visitRows->count() }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Data Lokal</span>
-                <strong>{{ $savedTransactions->count() }}</strong>
-            </article>
-        </div>
+        @if ($isMasterTransaksiView)
+            <div class="hero-tools is-master">
+                @if (! $viewingAllClinics && $lastRekapUpdate)
+                    <div class="hero-last-sync">
+                        <span>Terakhir Update</span>
+                        <strong>{{ $lastRekapUpdateLabel }}</strong>
+                        <small>
+                            Data {{ optional($lastRekapUpdate->tanggal_data)->format('d/m/Y') }} ·
+                            {{ number_format((int) $lastRekapUpdate->total_data, 0, ',', '.') }} baris
+                        </small>
+                    </div>
+                @endif
+
+                <form method="GET" action="{{ route('transaksi-pasien') }}" class="hero-filter-form">
+                        <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                        <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
+                        <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
+                        <input type="hidden" name="active_tab" value="{{ $preferredTab ?: 'panel-data-transaksi' }}">
+                        <div class="field-wrap">
+                            <label for="hero-clinic-id">Klinik Aktif</label>
+                            <select id="hero-clinic-id" name="clinic_id">
+                                <option value="all" @selected($viewingAllClinics)>Semua Klinik</option>
+                                @foreach ($clinicOptions as $clinicOption)
+                                    <option value="{{ $clinicOption->id }}" @selected((int) $selectedClinicId === (int) $clinicOption->id)>
+                                        {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary filter-submit">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M4 6h16"></path>
+                                <path d="M7 12h10"></path>
+                                <path d="M10 18h4"></path>
+                            </svg>
+                            Filter Data
+                        </button>
+                </form>
+            </div>
+        @elseif ($showUpdateRekapButton)
+            <div class="hero-tools">
+                <form method="POST" action="{{ route('transaksi-pasien.sync-rekap') }}" class="hero-update-form">
+                    @csrf
+                    <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                    <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
+                    <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
+                    <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
+                    <button type="submit" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 12a8 8 0 0 1 13.856-5.657"></path>
+                            <path d="M17 4v4h-4"></path>
+                            <path d="M20 12a8 8 0 0 1-13.856 5.657"></path>
+                            <path d="M7 20v-4h4"></path>
+                        </svg>
+                        Update Rekap
+                    </button>
+                </form>
+            </div>
+        @endif
     </section>
 
     @if (session('success'))
@@ -862,34 +1036,52 @@
     <section class="table-card tabs-card">
         <div class="tabs-toolbar">
             <div class="tabs-nav" role="tablist" aria-label="Tab data transaksi pasien">
-                <button
-                    type="button"
-                    class="tab-button is-active"
-                    role="tab"
-                    id="tab-transaksi-pasien"
-                    aria-selected="true"
-                    aria-controls="panel-transaksi-pasien"
-                    data-tab-target="panel-transaksi-pasien"
-                >
-                    Transaksi Pasien
-                    <span class="tab-button-count">{{ $visitRows->count() }}</span>
-                </button>
+                @if ($showTransaksiTab)
+                    <button
+                        type="button"
+                        class="tab-button is-active"
+                        role="tab"
+                        id="tab-transaksi-pasien"
+                        aria-selected="true"
+                        aria-controls="panel-transaksi-pasien"
+                        data-tab-target="panel-transaksi-pasien"
+                    >
+                        Transaksi Pasien
+                        <span class="tab-button-count">{{ $visitRows->count() }}</span>
+                    </button>
+                @endif
 
                 <button
                     type="button"
-                    class="tab-button"
+                    class="tab-button {{ $showTransaksiTab ? '' : 'is-active' }}"
                     role="tab"
                     id="tab-data-transaksi"
-                    aria-selected="false"
+                    aria-selected="{{ $showTransaksiTab ? 'false' : 'true' }}"
                     aria-controls="panel-data-transaksi"
                     data-tab-target="panel-data-transaksi"
                 >
                     Data Transaksi
                     <span class="tab-button-count">{{ $savedTransactionList->count() }}</span>
                 </button>
+
+                @if ($showRekapPasienTab)
+                    <button
+                        type="button"
+                        class="tab-button"
+                        role="tab"
+                        id="tab-rekap-pasien"
+                        aria-selected="false"
+                        aria-controls="panel-rekap-pasien"
+                        data-tab-target="panel-rekap-pasien"
+                    >
+                        Rekap Pasien
+                        <span class="tab-button-count">{{ $rekapPasienList->count() }}</span>
+                    </button>
+                @endif
             </div>
 
             <div class="tabs-toolbar-forms">
+                @if ($showTransaksiTab)
                 <form
                     method="GET"
                     action="{{ route('transaksi-pasien') }}"
@@ -899,6 +1091,9 @@
                 >
                     <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
                     <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
+                    @unless ($showClinicFilter)
+                        <input type="hidden" name="clinic_id" value="{{ $selectedClinicId }}">
+                    @endunless
                     <input type="hidden" name="active_tab" value="panel-transaksi-pasien">
 
                     <div class="tab-filter-field is-date">
@@ -915,6 +1110,19 @@
                         </select>
                     </div>
 
+                    @if ($showClinicFilter)
+                        <div class="tab-filter-field is-wide">
+                            <label for="tab_clinic_id">Klinik</label>
+                            <select id="tab_clinic_id" name="clinic_id">
+                                @foreach ($clinicOptions as $clinicOption)
+                                    <option value="{{ $clinicOption->id }}" @selected((int) $selectedClinicId === (int) $clinicOption->id)>
+                                        {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
                     <div class="tab-filter-actions">
                         <button type="submit" class="btn btn-primary tab-filter-button filter-submit">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -926,6 +1134,7 @@
                         </button>
                     </div>
                 </form>
+                @endif
 
                 <form
                     method="GET"
@@ -936,6 +1145,7 @@
                 >
                     <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
                     <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
+                    <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                     <input type="hidden" name="active_tab" value="panel-data-transaksi">
 
                     <div class="tab-filter-field">
@@ -955,6 +1165,19 @@
                         </select>
                     </div>
 
+                    @if ($showClinicFilter && ! $isMasterTransaksiView)
+                        <div class="tab-filter-field is-wide">
+                            <label for="data_clinic_id">Klinik</label>
+                            <select id="data_clinic_id" name="clinic_id">
+                                @foreach ($clinicOptions as $clinicOption)
+                                    <option value="{{ $clinicOption->id }}" @selected((int) $selectedClinicId === (int) $clinicOption->id)>
+                                        {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
                     <div class="tab-filter-actions">
                         <button type="submit" class="btn btn-primary tab-filter-button filter-submit">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -966,9 +1189,42 @@
                         </button>
                     </div>
                 </form>
+
+                @if ($showRekapPasienTab)
+                    <form
+                        method="GET"
+                        action="{{ route('transaksi-pasien') }}"
+                        class="tab-filter-form"
+                        data-tab-filter="panel-rekap-pasien"
+                        @if ($preferredTab !== 'panel-rekap-pasien') hidden @endif
+                    >
+                        <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                        <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
+                        <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
+                        <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
+                        <input type="hidden" name="active_tab" value="panel-rekap-pasien">
+
+                        <div class="tab-filter-field">
+                            <label for="rekap_bulan">Bulan</label>
+                            <input id="rekap_bulan" type="month" name="data_bulan" value="{{ $selectedDataMonth }}">
+                        </div>
+
+                        <div class="tab-filter-actions">
+                            <button type="submit" class="btn btn-primary tab-filter-button filter-submit">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 6h16"></path>
+                                    <path d="M7 12h10"></path>
+                                    <path d="M10 18h4"></path>
+                                </svg>
+                                Filter Data
+                            </button>
+                        </div>
+                    </form>
+                @endif
             </div>
         </div>
 
+        @if ($showTransaksiTab)
         <div class="tab-panel" id="panel-transaksi-pasien" role="tabpanel" aria-labelledby="tab-transaksi-pasien">
             <div class="table-head">
                 <h2>Data Baris Tanggal {{ $formattedSelectedDate }}</h2>
@@ -1040,6 +1296,10 @@
                                             <span class="status-badge ready">Tersimpan</span>
                                             <div class="row-subtitle">
                                                 Total: Rp {{ number_format((float) $localTransaction->jumlah_rp, 0, ',', '.') }}
+                                                @if ((float) $localTransaction->jumlah_kredit > 0)
+                                                    <br>
+                                                    Kredit: Rp {{ number_format((float) $localTransaction->jumlah_kredit, 0, ',', '.') }}
+                                                @endif
                                                 <br>
                                                 Admin: {{ $localTransaction->petugas_admin ?: '-' }}
                                             </div>
@@ -1056,7 +1316,7 @@
                                                 type="button"
                                                 class="action-btn input js-open-modal"
                                                 data-mode="create"
-                                                data-no-rawat="{{ $row['simrs_no_rawat'] }}"
+                                                data-map-key="{{ $row['map_key'] }}"
                                                 title="Input transaksi"
                                                 aria-label="Input transaksi"
                                                 @if ($localTransaction) disabled @endif
@@ -1068,21 +1328,23 @@
                                                 </svg>
                                             </button>
 
-                                            <button
-                                                type="button"
-                                                class="action-btn edit js-open-modal"
-                                                data-mode="edit"
-                                                data-no-rawat="{{ $row['simrs_no_rawat'] }}"
-                                                data-transaction-id="{{ $localTransaction?->id }}"
-                                                title="Edit transaksi"
-                                                aria-label="Edit transaksi"
-                                                @if (! $localTransaction) disabled @endif
-                                            >
-                                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                    <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
-                                                    <path d="M12.5 7.5l4 4"></path>
-                                                </svg>
-                                            </button>
+                                            @if ($canEditOperationalData)
+                                                <button
+                                                    type="button"
+                                                    class="action-btn edit js-open-modal"
+                                                    data-mode="edit"
+                                                    data-map-key="{{ $row['map_key'] }}"
+                                                    data-transaction-id="{{ $localTransaction?->id }}"
+                                                    title="Edit transaksi"
+                                                    aria-label="Edit transaksi"
+                                                    @if (! $localTransaction) disabled @endif
+                                                >
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
+                                                        <path d="M12.5 7.5l4 4"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
 
                                             <form
                                                 method="POST"
@@ -1095,6 +1357,7 @@
                                             >
                                                 @csrf
                                                 @method('DELETE')
+                                                <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                                                 <button
                                                     type="submit"
                                                     class="action-btn delete"
@@ -1120,6 +1383,7 @@
                 </div>
             @endif
         </div>
+        @endif
 
         <div class="tab-panel" id="panel-data-transaksi" role="tabpanel" aria-labelledby="tab-data-transaksi" hidden>
             <div class="table-head">
@@ -1157,6 +1421,10 @@
                                             NO RM: {{ $savedTransaction->no_rm ?: '-' }}
                                             <br>
                                             {{ $savedTransaction->dokter ?: 'Dokter belum diisi' }}
+                                            @if ($viewingAllClinics)
+                                                <br>
+                                                Klinik: {{ $savedTransaction->clinicProfile?->nama_pendek ?: $savedTransaction->clinicProfile?->nama_klinik ?: '-' }}
+                                            @endif
                                         </div>
                                     </td>
                                     <td>
@@ -1179,6 +1447,10 @@
                                         <div class="row-title">Rp {{ number_format((float) $savedTransaction->jumlah_rp, 0, ',', '.') }}</div>
                                         <div class="row-subtitle">
                                             {{ $savedTransaction->jml_visit }} visit
+                                            @if ((float) $savedTransaction->jumlah_kredit > 0)
+                                                <br>
+                                                Kredit: Rp {{ number_format((float) $savedTransaction->jumlah_kredit, 0, ',', '.') }}
+                                            @endif
                                         </div>
                                     </td>
                                     <td>
@@ -1189,20 +1461,22 @@
                                     </td>
                                     <td>
                                         <div class="action-stack">
-                                            <button
-                                                type="button"
-                                                class="action-btn edit js-open-modal"
-                                                data-mode="edit"
-                                                data-no-rawat="{{ $savedTransaction->simrs_no_rawat }}"
-                                                data-transaction-id="{{ $savedTransaction->id }}"
-                                                title="Edit transaksi"
-                                                aria-label="Edit transaksi"
-                                            >
-                                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                    <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
-                                                    <path d="M12.5 7.5l4 4"></path>
-                                                </svg>
-                                            </button>
+                                            @if ($canEditOperationalData)
+                                                <button
+                                                    type="button"
+                                                    class="action-btn edit js-open-modal"
+                                                    data-mode="edit"
+                                                    data-map-key="{{ $savedTransaction->clinic_profile_id . '::' . $savedTransaction->simrs_no_rawat }}"
+                                                    data-transaction-id="{{ $savedTransaction->id }}"
+                                                    title="Edit transaksi"
+                                                    aria-label="Edit transaksi"
+                                                >
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
+                                                        <path d="M12.5 7.5l4 4"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
 
                                             <form
                                                 method="POST"
@@ -1215,6 +1489,7 @@
                                             >
                                                 @csrf
                                                 @method('DELETE')
+                                                <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                                                 <button
                                                     type="submit"
                                                     class="action-btn delete"
@@ -1239,6 +1514,81 @@
                 </div>
             @endif
         </div>
+
+        @if ($showRekapPasienTab)
+            <div class="tab-panel" id="panel-rekap-pasien" role="tabpanel" aria-labelledby="tab-rekap-pasien" hidden>
+                <div class="table-head">
+                    <h2>Rekap Pasien {{ $formattedDataMonth }}</h2>
+                </div>
+
+                @if ($rekapPasienList->isEmpty())
+                    <div class="empty-state">
+                        Belum ada rekap pasien untuk periode {{ $formattedDataMonth }}.
+                    </div>
+                @else
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Pasien</th>
+                                    <th>No Rawat</th>
+                                    <th>Layanan</th>
+                                    @if ($viewingAllClinics)
+                                        <th>Klinik</th>
+                                    @endif
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($rekapPasienList as $rekapPasien)
+                                    @php
+                                        $rekapKey = $rekapPasien->clinic_profile_id . '::' . $rekapPasien->no_rawat;
+                                        $statusAda = $existingRekapKeys->has($rekapKey);
+                                    @endphp
+                                    <tr>
+                                        <td>
+                                            <div class="row-title">{{ optional($rekapPasien->tanggal)->format('d/m/Y') ?: '-' }}</div>
+                                            <div class="row-subtitle">
+                                            {{ $rekapPasien->synced_at?->copy()->timezone($displayTimezone)?->locale('id')->translatedFormat('d M Y H:i') ?: 'Belum ada waktu update' }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="row-title">{{ $rekapPasien->nama_pasien ?: 'Tanpa Nama' }}</div>
+                                            <div class="row-subtitle">
+                                                NO RM: {{ $rekapPasien->no_rm ?: '-' }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="row-title">{{ $rekapPasien->no_rawat }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="row-title">{{ $rekapPasien->masterLayanan?->nama_layanan ?: ($rekapPasien->layanan_medis ?: 'Belum Dimapping') }}</div>
+                                            <div class="row-subtitle">
+                                                Kode: {{ $rekapPasien->layanan_medis ?: '-' }}
+                                            </div>
+                                        </td>
+                                        @if ($viewingAllClinics)
+                                            <td>
+                                                <div class="row-title">{{ $rekapPasien->clinicProfile?->nama_pendek ?: $rekapPasien->clinicProfile?->nama_klinik ?: '-' }}</div>
+                                                <div class="row-subtitle">
+                                                    {{ $rekapPasien->clinicProfile?->kode_klinik ?: '-' }}
+                                                </div>
+                                            </td>
+                                        @endif
+                                        <td>
+                                            <span class="status-badge {{ $statusAda ? 'ready' : 'pending' }}">
+                                                {{ $statusAda ? 'Sudah Ada' : 'Tidak Ada' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        @endif
     </section>
 </div>
 
@@ -1270,10 +1620,12 @@
             <input type="hidden" name="_modal_mode" id="field-meta-mode" value="create">
             <input type="hidden" name="_transaction_id" id="field-meta-transaction-id">
             <input type="hidden" name="active_tab_context" id="field-active-tab-context">
+            <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
             <input type="hidden" name="simrs_no_rawat" id="field-simrs_no_rawat">
             <input type="hidden" name="simrs_no_reg" id="field-simrs_no_reg">
             <input type="hidden" name="dokter" id="field-dokter">
             <input type="hidden" name="penjamin" id="field-penjamin">
+            <input type="hidden" name="clinic_profile_id" id="field-clinic_profile_id" value="{{ $selectedClinicId }}">
 
             <div class="modal-body">
                 <div class="modal-summary">
@@ -1302,6 +1654,12 @@
                             <label for="field-layanan_medis">Kode Layanan</label>
                             <input id="field-layanan_medis" name="layanan_medis" type="text" class="readonly-display" readonly>
                         </div>
+                        @if ($showClinicFilter)
+                            <div class="modal-group">
+                                <label>Klinik Tujuan</label>
+                                <input type="text" value="{{ $selectedClinicLabel }}" class="readonly-display" readonly>
+                            </div>
+                        @endif
                         <div class="modal-group">
                             <label for="field-tanggal">Tgl.</label>
                             <input id="field-tanggal" name="tanggal" type="date">
@@ -1377,71 +1735,39 @@
                 <section class="modal-section">
                     <h4>Komponen Transaksi</h4>
                     <div class="modal-grid">
-                        <div class="modal-group">
-                            <label for="field-uang_daftar">Uang Daftar</label>
-                            <input id="field-uang_daftar" name="uang_daftar" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-uang_periksa">Uang Periksa</label>
-                            <input id="field-uang_periksa" name="uang_periksa" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-uang_obat">Uang Obat</label>
-                            <input id="field-uang_obat" name="uang_obat" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-uang_bersalin">Uang Bersalin</label>
-                            <input id="field-uang_bersalin" name="uang_bersalin" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
+                        @foreach ($komponenTransaksiMasters as $komponenMaster)
+                            <div class="modal-group">
+                                <label for="komponen-field-{{ $komponenMaster->id }}">
+                                    {{ $komponenMaster->nama_komponen }}
+                                    <span class="component-code">{{ $komponenMaster->kode_komponen }}</span>
+                                    <span class="component-side {{ $komponenMaster->arah_laporan === 'kredit' ? 'is-kredit' : 'is-debet' }}">
+                                        {{ $komponenMaster->arah_laporan === 'kredit' ? 'Kredit' : 'Debet' }}
+                                    </span>
+                                </label>
+                                <input
+                                    id="komponen-field-{{ $komponenMaster->id }}"
+                                    name="komponen_nilai[{{ $komponenMaster->id }}]"
+                                    type="text"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                    class="js-komponen-field js-currency-input"
+                                    data-component-id="{{ $komponenMaster->id }}"
+                                    data-field-key="{{ $komponenMaster->field_key }}"
+                                    data-direction="{{ $komponenMaster->arah_laporan }}"
+                                >
+                            </div>
+                        @endforeach
 
-                        <div class="modal-group">
-                            <label for="field-jasa_dokter">Jasa Dokter</label>
-                            <input id="field-jasa_dokter" name="jasa_dokter" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
                         <div class="modal-group">
                             <label for="field-jml_hari">Jml Hari</label>
                             <input id="field-jml_hari" name="jml_hari" type="number" min="0">
                         </div>
                         <div class="modal-group">
-                            <label for="field-rawat_inap">Rawat Inap</label>
-                            <input id="field-rawat_inap" name="rawat_inap" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
                             <label for="field-jml_visit">Jml. Visit</label>
                             <input id="field-jml_visit" name="jml_visit" type="number" min="0">
                         </div>
-
                         <div class="modal-group">
-                            <label for="field-honor_dr_visit">Honor dr Visit</label>
-                            <input id="field-honor_dr_visit" name="honor_dr_visit" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-oksigen">Oksigen</label>
-                            <input id="field-oksigen" name="oksigen" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-perlengk_bayi">Perlengk Bayi</label>
-                            <input id="field-perlengk_bayi" name="perlengk_bayi" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-jaspel_nakes">Jaspel Nakes</label>
-                            <input id="field-jaspel_nakes" name="jaspel_nakes" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-
-                        <div class="modal-group">
-                            <label for="field-bmhp">BMHP</label>
-                            <input id="field-bmhp" name="bmhp" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-pkl">PKL</label>
-                            <input id="field-pkl" name="pkl" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-lain_lain">Lain-lain</label>
-                            <input id="field-lain_lain" name="lain_lain" type="number" step="0.01" min="0" class="js-rupiah-field">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-jumlah_rp_display">Jlh Rp.</label>
+                            <label for="field-jumlah_rp_display">Jlh Rp. Debet</label>
                             <input id="field-jumlah_rp_display" type="text" class="readonly-display" readonly>
                         </div>
                     </div>
@@ -1450,30 +1776,32 @@
                 <section class="modal-section">
                     <h4>Administrasi</h4>
                     <div class="modal-grid">
-                        <div class="modal-group">
-                            <label for="field-utang_pasien">Utang Pasien</label>
-                            <input id="field-utang_pasien" name="utang_pasien" type="number" step="0.01" min="0">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-utang">Utang</label>
-                            <input id="field-utang" name="utang" type="number" step="0.01" min="0">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-bayar_utang_pasien">Bayar Utang Pasien</label>
-                            <input id="field-bayar_utang_pasien" name="bayar_utang_pasien" type="number" step="0.01" min="0">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-derma_solidaritas">Derma & Solidaritas</label>
-                            <input id="field-derma_solidaritas" name="derma_solidaritas" type="number" step="0.01" min="0">
-                        </div>
+                        @foreach ($administrasiPasienMasters as $administrasiMaster)
+                            <div class="modal-group">
+                                <label for="administrasi-field-{{ $administrasiMaster->id }}">
+                                    {{ $administrasiMaster->nama_administrasi }}
+                                    <span class="component-code">{{ $administrasiMaster->kode_administrasi }}</span>
+                                    <span class="component-side {{ $administrasiMaster->arah_laporan === 'kredit' ? 'is-kredit' : 'is-debet' }}">
+                                        {{ $administrasiMaster->arah_laporan === 'kredit' ? 'Kredit' : 'Debet' }}
+                                    </span>
+                                </label>
+                                <input
+                                    id="administrasi-field-{{ $administrasiMaster->id }}"
+                                    name="administrasi_nilai[{{ $administrasiMaster->id }}]"
+                                    type="text"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                    class="js-administrasi-field js-currency-input"
+                                    data-admin-id="{{ $administrasiMaster->id }}"
+                                    data-field-key="{{ $administrasiMaster->field_key }}"
+                                    data-direction="{{ $administrasiMaster->arah_laporan }}"
+                                >
+                            </div>
+                        @endforeach
 
                         <div class="modal-group">
-                            <label for="field-saldo_kredit">Saldo Kredit</label>
-                            <input id="field-saldo_kredit" name="saldo_kredit" type="number" step="0.01" min="0">
-                        </div>
-                        <div class="modal-group">
-                            <label for="field-saldo">Saldo</label>
-                            <input id="field-saldo" name="saldo" type="number" step="0.01" min="0">
+                            <label for="field-jumlah_kredit_display">Jlh Rp. Kredit</label>
+                            <input id="field-jumlah_kredit_display" type="text" class="readonly-display" readonly>
                         </div>
                         <div class="modal-group span-2">
                             <label>User Login</label>
@@ -1498,12 +1826,45 @@
     </div>
 </div>
 
+@php
+    $komponenTransaksiFieldPayload = $komponenTransaksiMasters
+        ->map(function ($item) {
+            return [
+                'id' => (int) $item->id,
+                'field_key' => $item->field_key,
+                'prefill_keys' => collect($item->prefill_keys ?? [$item->field_key])
+                    ->filter()
+                    ->values()
+                    ->all(),
+                'arah_laporan' => $item->arah_laporan,
+            ];
+        })
+        ->values()
+        ->all();
+    $administrasiPasienFieldPayload = $administrasiPasienMasters
+        ->map(function ($item) {
+            return [
+                'id' => (int) $item->id,
+                'field_key' => $item->field_key,
+                'prefill_keys' => collect($item->prefill_keys ?? [$item->field_key])
+                    ->filter()
+                    ->values()
+                    ->all(),
+                'arah_laporan' => $item->arah_laporan,
+            ];
+        })
+        ->values()
+        ->all();
+@endphp
+
 <script>
-    const visitMap = @json($visitRows->keyBy('simrs_no_rawat')->all());
+    const visitMap = @json($visitRows->keyBy('map_key')->all());
     const savedMap = @json($savedTransactionData);
     const oldFormState = @json(session()->getOldInput());
     const hasValidationErrors = @json($errors->any());
     const preferredTab = @json($preferredTab);
+    const komponenTransaksiFields = @json($komponenTransaksiFieldPayload);
+    const administrasiPasienFields = @json($administrasiPasienFieldPayload);
 
     const modal = document.getElementById('transaksiModal');
     const form = document.getElementById('transaksiForm');
@@ -1524,6 +1885,7 @@
     const tabStorageKey = 'transaksi-pasien.active-tab';
 
     const trackedFields = [
+        'clinic_profile_id',
         'simrs_no_rawat',
         'simrs_no_reg',
         'layanan_medis',
@@ -1543,48 +1905,90 @@
         'icd',
         'diagnosa',
         'farmasi',
-        'uang_daftar',
-        'uang_periksa',
-        'uang_obat',
-        'uang_bersalin',
-        'jasa_dokter',
         'jml_hari',
-        'rawat_inap',
         'jml_visit',
-        'honor_dr_visit',
-        'oksigen',
-        'perlengk_bayi',
-        'jaspel_nakes',
-        'bmhp',
-        'pkl',
-        'lain_lain',
-        'utang_pasien',
-        'utang',
-        'bayar_utang_pasien',
-        'derma_solidaritas',
-        'saldo_kredit',
-        'saldo',
         'keterangan',
-    ];
-
-    const rupiahFields = [
-        'uang_daftar',
-        'uang_periksa',
-        'uang_obat',
-        'uang_bersalin',
-        'jasa_dokter',
-        'rawat_inap',
-        'honor_dr_visit',
-        'oksigen',
-        'perlengk_bayi',
-        'jaspel_nakes',
-        'bmhp',
-        'pkl',
-        'lain_lain',
     ];
 
     function formatRupiah(value) {
         return 'Rp ' + new Intl.NumberFormat('id-ID').format(value || 0);
+    }
+
+    function splitCurrencyParts(value) {
+        const cleaned = String(value ?? '').replace(/[^\d.,]/g, '').trim();
+
+        if (!cleaned) {
+            return { intPart: '', fracPart: '' };
+        }
+
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        const candidates = [lastComma, lastDot].filter((index) => index >= 0).sort((a, b) => b - a);
+
+        let separatorIndex = -1;
+
+        for (const index of candidates) {
+            const intCandidate = cleaned.slice(0, index).replace(/[^\d]/g, '');
+            const fracCandidate = cleaned.slice(index + 1).replace(/[^\d]/g, '');
+
+            if (intCandidate.length > 0 && fracCandidate.length > 0 && fracCandidate.length <= 2) {
+                separatorIndex = index;
+                break;
+            }
+        }
+
+        if (separatorIndex >= 0) {
+            return {
+                intPart: cleaned.slice(0, separatorIndex).replace(/[^\d]/g, ''),
+                fracPart: cleaned.slice(separatorIndex + 1).replace(/[^\d]/g, '').slice(0, 2),
+            };
+        }
+
+        return {
+            intPart: cleaned.replace(/[^\d]/g, ''),
+            fracPart: '',
+        };
+    }
+
+    function formatCurrencyDisplay(value) {
+        const { intPart, fracPart } = splitCurrencyParts(value);
+
+        if (!intPart && !fracPart) {
+            return '';
+        }
+
+        const normalizedInt = (intPart || '0').replace(/^0+(?=\d)/, '') || '0';
+        const formattedInt = normalizedInt.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+        return fracPart ? `${formattedInt},${fracPart}` : formattedInt;
+    }
+
+    function currencyValueToNumber(value) {
+        const { intPart, fracPart } = splitCurrencyParts(value);
+
+        if (!intPart && !fracPart) {
+            return 0;
+        }
+
+        return parseFloat(`${intPart || '0'}${fracPart ? `.${fracPart}` : ''}`) || 0;
+    }
+
+    function currencyValueToSubmitString(value) {
+        const { intPart, fracPart } = splitCurrencyParts(value);
+
+        if (!intPart && !fracPart) {
+            return '';
+        }
+
+        return `${intPart || '0'}${fracPart ? `.${fracPart}` : ''}`;
+    }
+
+    function setCurrencyFieldDisplay(field, value) {
+        if (!field) {
+            return;
+        }
+
+        field.value = formatCurrencyDisplay(value);
     }
 
     function isBpjsPenjamin(value) {
@@ -1595,6 +1999,11 @@
         const field = document.getElementById(`field-${name}`);
 
         if (!field) {
+            return;
+        }
+
+        if (field.classList.contains('js-currency-input')) {
+            setCurrencyFieldDisplay(field, value);
             return;
         }
 
@@ -1611,11 +2020,121 @@
         return parseFloat(field.value) || 0;
     }
 
-    function syncTotal() {
-        const total = rupiahFields.reduce((carry, fieldName) => carry + getNumberValue(fieldName), 0);
+    function getKomponenNumberValue(componentId) {
+        const field = document.getElementById(`komponen-field-${componentId}`);
 
-        document.getElementById('field-jumlah_rp_display').value = formatRupiah(total);
-        summaryTotal.textContent = formatRupiah(total);
+        if (!field) {
+            return 0;
+        }
+
+        return currencyValueToNumber(field.value);
+    }
+
+    function getAdministrasiNumberValue(adminId) {
+        const field = document.getElementById(`administrasi-field-${adminId}`);
+
+        if (!field) {
+            return 0;
+        }
+
+        return currencyValueToNumber(field.value);
+    }
+
+    function hydrateKomponenValues(payload) {
+        komponenTransaksiFields.forEach((component) => {
+            const field = document.getElementById(`komponen-field-${component.id}`);
+
+            if (!field) {
+                return;
+            }
+
+            const dynamicValue = payload?.komponen_nilai?.[component.id]
+                ?? payload?.komponen_nilai?.[String(component.id)]
+                ?? payload?.komponen_transaksi?.[component.id]
+                ?? payload?.komponen_transaksi?.[String(component.id)];
+
+            const fallbackValue = Array.isArray(component.prefill_keys)
+                ? component.prefill_keys.reduce((resolved, key) => {
+                    if (resolved !== null && resolved !== undefined && resolved !== '') {
+                        return resolved;
+                    }
+
+                    const nextValue = key ? payload?.[key] : null;
+                    return nextValue ?? resolved;
+                }, null)
+                : (component.field_key ? payload?.[component.field_key] : null);
+
+            setCurrencyFieldDisplay(field, dynamicValue ?? fallbackValue ?? '');
+        });
+    }
+
+    function hydrateAdministrasiValues(payload) {
+        administrasiPasienFields.forEach((administrasi) => {
+            const field = document.getElementById(`administrasi-field-${administrasi.id}`);
+
+            if (!field) {
+                return;
+            }
+
+            const dynamicValue = payload?.administrasi_nilai?.[administrasi.id]
+                ?? payload?.administrasi_nilai?.[String(administrasi.id)]
+                ?? payload?.administrasi_transaksi?.[administrasi.id]
+                ?? payload?.administrasi_transaksi?.[String(administrasi.id)];
+
+            const fallbackValue = Array.isArray(administrasi.prefill_keys)
+                ? administrasi.prefill_keys.reduce((resolved, key) => {
+                    if (resolved !== null && resolved !== undefined && resolved !== '') {
+                        return resolved;
+                    }
+
+                    const nextValue = key ? payload?.[key] : null;
+                    return nextValue ?? resolved;
+                }, null)
+                : (administrasi.field_key ? payload?.[administrasi.field_key] : null);
+
+            setCurrencyFieldDisplay(field, dynamicValue ?? fallbackValue ?? '');
+        });
+    }
+
+    function prepareCurrencyInputsForSubmit(scope) {
+        scope.querySelectorAll('.js-currency-input').forEach((field) => {
+            field.dataset.displayValue = field.value;
+            field.value = currencyValueToSubmitString(field.value);
+        });
+    }
+
+    function restoreCurrencyInputs(scope) {
+        scope.querySelectorAll('.js-currency-input').forEach((field) => {
+            if (Object.prototype.hasOwnProperty.call(field.dataset, 'displayValue')) {
+                field.value = field.dataset.displayValue;
+                delete field.dataset.displayValue;
+            }
+        });
+    }
+
+    function syncTotal() {
+        const totalDebetKomponen = komponenTransaksiFields.reduce(
+            (carry, component) => carry + (component.arah_laporan === 'kredit' ? 0 : getKomponenNumberValue(component.id)),
+            0
+        );
+        const totalKreditKomponen = komponenTransaksiFields.reduce(
+            (carry, component) => carry + (component.arah_laporan === 'kredit' ? getKomponenNumberValue(component.id) : 0),
+            0
+        );
+        const totalDebetAdministrasi = administrasiPasienFields.reduce(
+            (carry, administrasi) => carry + (administrasi.arah_laporan === 'kredit' ? 0 : getAdministrasiNumberValue(administrasi.id)),
+            0
+        );
+        const totalKreditAdministrasi = administrasiPasienFields.reduce(
+            (carry, administrasi) => carry + (administrasi.arah_laporan === 'kredit' ? getAdministrasiNumberValue(administrasi.id) : 0),
+            0
+        );
+        const totalDebet = totalDebetKomponen + totalDebetAdministrasi;
+        const totalKredit = totalKreditKomponen + totalKreditAdministrasi;
+
+        document.getElementById('field-jumlah_rp_display').value = formatRupiah(totalDebet);
+        document.getElementById('field-jumlah_kredit_display').value = formatRupiah(totalKredit);
+        summaryTotal.textContent = formatRupiah(totalDebet);
     }
 
     function closeModal() {
@@ -1645,13 +2164,16 @@
     function currentActiveTab() {
         return tabButtons.find((button) => button.classList.contains('is-active'))?.dataset.tabTarget
             || window.localStorage.getItem(tabStorageKey)
-            || 'panel-transaksi-pasien';
+            || tabButtons[0]?.dataset.tabTarget
+            || 'panel-data-transaksi';
     }
 
     function hydrateForm(mode, payload, transactionId = null) {
         const resolvedTransactionId = transactionId || payload.id || '';
 
         trackedFields.forEach((fieldName) => setFieldValue(fieldName, payload[fieldName]));
+        hydrateKomponenValues(payload);
+        hydrateAdministrasiValues(payload);
 
         form.action = mode === 'edit'
             ? form.dataset.updateUrl.replace('__ID__', resolvedTransactionId)
@@ -1678,9 +2200,26 @@
         }
     }
 
-    function openModal(mode, noRawat, transactionId = null, overrideData = null) {
-        const sourceData = visitMap[noRawat] || {};
-        const savedData = savedMap[noRawat] || {};
+    function resolveMapKey(mapKey, overrideData = null) {
+        if (mapKey) {
+            return mapKey;
+        }
+
+        if (overrideData?.map_key) {
+            return overrideData.map_key;
+        }
+
+        if (overrideData?.clinic_profile_id && overrideData?.simrs_no_rawat) {
+            return `${overrideData.clinic_profile_id}::${overrideData.simrs_no_rawat}`;
+        }
+
+        return overrideData?.simrs_no_rawat || '';
+    }
+
+    function openModal(mode, mapKey, transactionId = null, overrideData = null) {
+        const resolvedMapKey = resolveMapKey(mapKey, overrideData);
+        const sourceData = visitMap[resolvedMapKey] || {};
+        const savedData = savedMap[resolvedMapKey] || {};
         const payload = overrideData
             ? (mode === 'edit' ? { ...sourceData, ...savedData, ...overrideData } : { ...sourceData, ...overrideData })
             : (mode === 'edit' ? { ...sourceData, ...savedData } : sourceData);
@@ -1696,7 +2235,7 @@
         button.addEventListener('click', () => {
             openModal(
                 button.dataset.mode,
-                button.dataset.noRawat,
+                button.dataset.mapKey,
                 button.dataset.transactionId || null,
             );
         });
@@ -1712,15 +2251,38 @@
         }
     });
 
-    document.querySelectorAll('.js-rupiah-field').forEach((input) => {
+    document.querySelectorAll('.js-komponen-field').forEach((input) => {
         input.addEventListener('input', syncTotal);
+    });
+
+    document.querySelectorAll('.js-administrasi-field').forEach((input) => {
+        input.addEventListener('input', syncTotal);
+    });
+
+    document.querySelectorAll('.js-currency-input').forEach((input) => {
+        input.addEventListener('input', () => {
+            input.value = formatCurrencyDisplay(input.value);
+        });
+
+        input.addEventListener('blur', () => {
+            input.value = formatCurrencyDisplay(input.value);
+        });
+
+        if (input.value) {
+            input.value = formatCurrencyDisplay(input.value);
+        }
+    });
+
+    form.addEventListener('submit', () => {
+        prepareCurrencyInputsForSubmit(form);
+        window.setTimeout(() => restoreCurrencyInputs(form), 0);
     });
 
     tabButtons.forEach((button) => {
         button.addEventListener('click', () => activateTab(button.dataset.tabTarget));
     });
 
-    const fallbackTab = preferredTab || window.localStorage.getItem(tabStorageKey) || 'panel-transaksi-pasien';
+    const fallbackTab = preferredTab || window.localStorage.getItem(tabStorageKey) || tabButtons[0]?.dataset.tabTarget || 'panel-data-transaksi';
     const initialTab = hasValidationErrors && oldFormState._modal_mode
         ? (oldFormState.active_tab_context || fallbackTab)
         : fallbackTab;
@@ -1728,9 +2290,14 @@
     activateTab(initialTab);
 
     if (hasValidationErrors && oldFormState._modal_mode && oldFormState.simrs_no_rawat) {
+        const oldMapKey = oldFormState.map_key
+            || (oldFormState.clinic_profile_id && oldFormState.simrs_no_rawat
+                ? `${oldFormState.clinic_profile_id}::${oldFormState.simrs_no_rawat}`
+                : oldFormState.simrs_no_rawat);
+
         openModal(
             oldFormState._modal_mode,
-            oldFormState.simrs_no_rawat,
+            oldMapKey,
             oldFormState._transaction_id || null,
             oldFormState,
         );

@@ -14,6 +14,7 @@ class Pengeluaran extends Model
     protected $table = 'pengeluaran';
 
     protected $fillable = [
+        'clinic_profile_id',
         'master_kategori_pengeluaran_id',
         'user_id',
         'tanggal',
@@ -31,6 +32,7 @@ class Pengeluaran extends Model
     protected function casts(): array
     {
         return [
+            'clinic_profile_id' => 'integer',
             'tanggal' => 'date',
             'bulan' => 'integer',
             'tahun' => 'integer',
@@ -59,5 +61,10 @@ class Pengeluaran extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function clinicProfile(): BelongsTo
+    {
+        return $this->belongsTo(ClinicProfile::class);
     }
 }

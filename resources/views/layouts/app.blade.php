@@ -9,13 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        html {
+            font-size: 15px;
+        }
+
         :root {
             --app-bg-top: #f8fbff;
             --app-bg-bottom: #eaf1f8;
             --ink: #1b2230;
             --muted: #6b7280;
-            --sidebar-width: 234px;
-            --sidebar-collapsed-width: 84px;
+            --sidebar-width: 226px;
+            --sidebar-collapsed-width: 80px;
             --sidebar-top: #18294d;
             --sidebar-bottom: #0e1730;
             --sidebar-text: #edf2fb;
@@ -59,7 +63,7 @@
             inset: 0 auto 0 0;
             width: var(--sidebar-width);
             min-height: 100vh;
-            padding: 14px 12px;
+            padding: 13px 11px;
             color: var(--sidebar-text);
             background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-bottom) 100%);
             border-right: 1px solid var(--sidebar-line);
@@ -83,7 +87,7 @@
             position: relative;
             z-index: 1;
             display: flex;
-            min-height: calc(100vh - 28px);
+            min-height: calc(100vh - 26px);
             flex-direction: column;
         }
 
@@ -91,10 +95,10 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
-            padding: 12px;
+            gap: 9px;
+            padding: 11px;
             border: 1px solid var(--sidebar-line);
-            border-radius: 18px;
+            border-radius: 17px;
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
             backdrop-filter: blur(14px);
         }
@@ -103,17 +107,17 @@
             display: flex;
             min-width: 0;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
         }
 
         .brand-mark {
             display: inline-flex;
-            height: 40px;
-            width: 40px;
+            height: 38px;
+            width: 38px;
             flex-shrink: 0;
             align-items: center;
             justify-content: center;
-            border-radius: 14px;
+            border-radius: 13px;
             background: radial-gradient(circle at 30% 30%, #a8ccff 0%, #5ba7ff 38%, #1d5ee0 100%);
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.18),
@@ -121,8 +125,8 @@
         }
 
         .brand-mark svg {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             fill: none;
             stroke: white;
             stroke-linecap: round;
@@ -143,7 +147,7 @@
 
         .brand-copy h2 {
             margin: 0;
-            font-size: 1rem;
+            font-size: 0.95rem;
             line-height: 1.25;
             font-weight: var(--font-bold);
             color: #f8fafc;
@@ -152,19 +156,19 @@
         .brand-copy p {
             margin: 4px 0 0;
             color: rgba(226, 234, 246, 0.72);
-            font-size: 0.7rem;
+            font-size: 0.66rem;
             line-height: 1.55;
         }
 
         .sidebar-toggle {
             display: inline-flex;
-            height: 32px;
-            width: 32px;
+            height: 30px;
+            width: 30px;
             flex-shrink: 0;
             align-items: center;
             justify-content: center;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
+            border-radius: 11px;
             background: rgba(255, 255, 255, 0.06);
             color: var(--sidebar-text);
             cursor: pointer;
@@ -176,8 +180,8 @@
         }
 
         .sidebar-toggle svg {
-            width: 16px;
-            height: 16px;
+            width: 15px;
+            height: 15px;
             fill: none;
             stroke: currentColor;
             stroke-linecap: round;
@@ -187,26 +191,26 @@
         }
 
         .sidebar-section {
-            margin-top: 16px;
+            margin-top: 14px;
         }
 
         .sidebar-section-title {
             padding: 0 6px;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
         }
 
         .sidebar-menu {
             display: grid;
-            gap: 6px;
+            gap: 5px;
         }
 
         .sidebar-link {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
+            gap: 9px;
+            padding: 9px;
             border: 1px solid transparent;
-            border-radius: 14px;
+            border-radius: 13px;
             background: transparent;
             color: var(--sidebar-text);
             font-weight: var(--font-semibold);
@@ -244,7 +248,7 @@
 
         .sidebar-group {
             display: grid;
-            gap: 8px;
+            gap: 7px;
         }
 
         .sidebar-link-group {
@@ -260,13 +264,13 @@
 
         .sidebar-icon {
             display: inline-flex;
-            height: 34px;
-            width: 34px;
+            height: 32px;
+            width: 32px;
             flex-shrink: 0;
             align-items: center;
             justify-content: center;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 11px;
+            border-radius: 10px;
             background: rgba(255, 255, 255, 0.07);
         }
 
@@ -276,8 +280,8 @@
         }
 
         .sidebar-icon svg {
-            width: 16px;
-            height: 16px;
+            width: 15px;
+            height: 15px;
             fill: none;
             stroke: currentColor;
             stroke-linecap: round;
@@ -291,20 +295,20 @@
             min-width: 0;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
+            gap: 7px;
         }
 
         .sidebar-link-label {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: var(--font-semibold);
             color: inherit;
         }
 
         .sidebar-group-caret {
             display: inline-flex;
-            height: 18px;
-            width: 18px;
+            height: 17px;
+            width: 17px;
             align-items: center;
             justify-content: center;
             color: inherit;
@@ -312,8 +316,8 @@
         }
 
         .sidebar-group-caret svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             fill: none;
             stroke: currentColor;
             stroke-linecap: round;
@@ -333,9 +337,9 @@
 
         .sidebar-submenu {
             display: grid;
-            gap: 6px;
-            margin-left: 16px;
-            padding-left: 16px;
+            gap: 5px;
+            margin-left: 14px;
+            padding-left: 14px;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
         }
 
@@ -346,12 +350,12 @@
         .sidebar-sublink {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            min-height: 36px;
-            padding: 8px 10px;
-            border-radius: 12px;
+            gap: 9px;
+            min-height: 34px;
+            padding: 7px 9px;
+            border-radius: 11px;
             color: rgba(237, 242, 251, 0.82);
-            font-size: 0.78rem;
+            font-size: 0.74rem;
             font-weight: var(--font-semibold);
             text-decoration: none;
             transition: background 180ms ease, color 180ms ease, transform 180ms ease;
@@ -369,8 +373,8 @@
         }
 
         .sidebar-subdot {
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
             flex-shrink: 0;
             border-radius: 999px;
             background: rgba(160, 196, 255, 0.52);
@@ -419,9 +423,9 @@
 
         .sidebar-user-card {
             margin-top: auto;
-            padding: 14px;
+            padding: 13px;
             border: 1px solid var(--sidebar-line);
-            border-radius: 18px;
+            border-radius: 17px;
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
             backdrop-filter: blur(12px);
         }
@@ -429,20 +433,20 @@
         .sidebar-user-top {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 11px;
         }
 
         .sidebar-user-avatar {
             display: inline-flex;
-            height: 42px;
-            width: 42px;
+            height: 40px;
+            width: 40px;
             flex-shrink: 0;
             align-items: center;
             justify-content: center;
-            border-radius: 14px;
+            border-radius: 13px;
             background: radial-gradient(circle at 30% 30%, #b7d5ff 0%, #66a9ff 42%, #2563eb 100%);
             color: #ffffff;
-            font-size: 0.9rem;
+            font-size: 0.84rem;
             font-weight: var(--font-bold);
             letter-spacing: 0.06em;
             box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
@@ -455,7 +459,7 @@
         .sidebar-user-meta strong {
             display: block;
             color: #f8fbff;
-            font-size: 0.86rem;
+            font-size: 0.8rem;
             line-height: 1.3;
         }
 
@@ -463,7 +467,7 @@
         .sidebar-user-handle {
             display: block;
             color: rgba(226, 234, 246, 0.72);
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             line-height: 1.55;
         }
 
@@ -471,13 +475,13 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
-            margin-top: 12px;
+            gap: 9px;
+            margin-top: 11px;
         }
 
         .sidebar-user-handle {
             min-width: 0;
-            max-width: 150px;
+            max-width: 142px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -487,13 +491,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            height: 34px;
+            height: 32px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            padding: 0 12px;
+            border-radius: 11px;
+            padding: 0 11px;
             background: rgba(255, 255, 255, 0.08);
             color: #f8fbff;
-            font-size: 0.74rem;
+            font-size: 0.7rem;
             font-weight: var(--font-bold);
             cursor: pointer;
             transition: background 180ms ease, transform 180ms ease;
@@ -507,12 +511,12 @@
         .main-content {
             min-height: 100vh;
             margin-left: var(--sidebar-width);
-            padding: 22px;
+            padding: 20px;
             transition: margin-left 180ms ease;
         }
 
         .main-content > * {
-            max-width: 1440px;
+            max-width: 1420px;
         }
 
         body.has-confirm-open {

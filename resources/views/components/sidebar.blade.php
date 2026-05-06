@@ -2,14 +2,21 @@
     $currentUser = auth()->user();
     $pegawaiProfile = $currentUser?->pegawaiProfile;
     $clinicProfile = $sharedClinicProfile ?? null;
-    $clinicTitle = $clinicProfile?->nama_pendek ?: $clinicProfile?->nama_klinik ?: config('app.name', 'Klink Report');
-    $clinicSubtitle = $clinicProfile?->tagline ?: 'Laporan operasional klinik';
+    $masterNeutralMode = $currentUser?->isMaster() && ! $clinicProfile;
+    $clinicTitle = $masterNeutralMode
+        ? 'Dashboard Pusat'
+        : ($clinicProfile?->nama_pendek ?: $clinicProfile?->nama_klinik ?: config('app.name', 'Klink Report'));
+    $clinicSubtitle = $masterNeutralMode
+        ? 'Pilih klinik dari filter untuk fokus data'
+        : ($clinicProfile?->tagline ?: 'Laporan operasional klinik');
     $initials = collect(preg_split('/\s+/', trim((string) ($currentUser?->name ?: 'KA'))))
         ->filter()
         ->take(2)
         ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
         ->implode('');
-
+    $masterClinicQuery = $currentUser?->isMaster() && request()->has('clinic_id')
+        ? ['clinic_id' => request()->query('clinic_id')]
+        : [];
     $menuSections = [
         [
             'title' => 'Utama',
@@ -18,7 +25,6 @@
                     'label' => 'Dashboard',
                     'route' => 'dashboard',
                     'icon' => 'dashboard',
-                    'note' => 'Ringkasan operasional',
                     'status' => 'live',
                 ],
                 [
@@ -31,7 +37,7 @@
         ],
         [
             'title' => 'Keuangan',
-            'items' => [
+            'items' => array_values(array_filter([
                 [
                     'label' => 'Input Pengeluaran',
                     'route' => 'input-pengeluaran',
@@ -39,23 +45,51 @@
                     'status' => 'live',
                 ],
                 [
+                    'label' => 'Input Klaim BPJS',
+                    'route' => 'input-klaim-bpjs',
+                    'icon' => 'receipt',
+                    'status' => 'live',
+                ],
+                $currentUser?->canViewReports() ? [
                     'label' => 'Rekap Bulanan',
                     'route' => 'rekap-bulanan',
                     'icon' => 'calendar',
                     'status' => 'live',
-                ],
-                [
+                ] : null,
+                $currentUser?->canViewReports() ? [
                     'label' => 'Rekap Tahunan',
                     'route' => 'rekap-tahunan',
                     'icon' => 'chart',
                     'status' => 'live',
+                ] : null,
+            ])),
+        ],
+        [
+            'title' => 'Pusat Laporan',
+            'items' => [
+                [
+                    'label' => 'Rekap Data Pusat',
+                    'route' => null,
+                    'icon' => 'database',
+                    'status' => 'live',
+                    'group_id' => 'rekap-data-pusat',
+                    'children' => [
+                        [
+                            'label' => 'Rekap Obat',
+                            'route' => 'rekap-obat-pusat',
+                        ],
+                        [
+                            'label' => 'Rekap Pasien',
+                            'route' => 'rekap-pasien-pusat',
+                        ],
+                    ],
                 ],
             ],
         ],
         [
             'title' => 'Administrasi',
-            'items' => [
-                [
+            'items' => array_values(array_filter([
+                $currentUser?->canManageMasters() ? [
                     'label' => 'Kode Yayasan',
                     'route' => null,
                     'icon' => 'shield',
@@ -67,29 +101,43 @@
                             'route' => 'kode-layanan',
                         ],
                         [
+                            'label' => 'Komponen Transaksi',
+                            'route' => 'kode-komponen-transaksi',
+                        ],
+                        [
+                            'label' => 'Administrasi Pasien',
+                            'route' => 'kode-administrasi-pasien',
+                        ],
+                        [
                             'label' => 'Kode Pengeluaran',
                             'route' => 'kode-pengeluaran',
                         ],
+                        [
+                            'label' => 'Koneksi DB Klinik',
+                            'route' => 'koneksi-db-klinik',
+                        ],
                     ],
-                ],
-                [
+                ] : null,
+                $currentUser?->canManageClinicProfile() ? [
                     'label' => 'Profile Klinik',
                     'route' => 'profile-klinik',
                     'icon' => 'profile',
                     'status' => 'live',
-                ],
-            ],
+                ] : null,
+                $currentUser?->canManageUsers() ? [
+                    'label' => 'Manajemen User',
+                    'route' => 'manajemen-user',
+                    'icon' => 'users',
+                    'status' => 'live',
+                ] : null,
+            ])),
         ],
     ];
 
-    if (strtolower((string) $currentUser?->role) === 'admin') {
-        $menuSections[2]['items'][] = [
-            'label' => 'Manajemen User',
-            'route' => 'manajemen-user',
-            'icon' => 'users',
-            'status' => 'live',
-        ];
-    }
+    $menuSections = collect($menuSections)
+        ->filter(fn ($section) => ! empty($section['items']))
+        ->values()
+        ->all();
 
 @endphp
 
@@ -198,6 +246,13 @@
                                                     <path d="M9.5 12.5 11 14l3.5-3.5"></path>
                                                 </svg>
                                                 @break
+                                            @case('database')
+                                                <svg viewBox="0 0 24 24">
+                                                    <ellipse cx="12" cy="6" rx="7" ry="3"></ellipse>
+                                                    <path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"></path>
+                                                    <path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"></path>
+                                                </svg>
+                                                @break
                                             @case('users')
                                                 <svg viewBox="0 0 24 24">
                                                     <path d="M16 19a4 4 0 0 0-8 0"></path>
@@ -206,6 +261,14 @@
                                                     <path d="M17.5 6.5a2.5 2.5 0 0 1 0 5"></path>
                                                     <path d="M4 19a3.5 3.5 0 0 1 3-3.46"></path>
                                                     <path d="M6.5 6.5a2.5 2.5 0 0 0 0 5"></path>
+                                                </svg>
+                                                @break
+                                            @case('receipt')
+                                                <svg viewBox="0 0 24 24">
+                                                    <path d="M7 3h10a2 2 0 0 1 2 2v16l-2.5-1.6L14 21l-2.5-1.6L9 21l-2.5-1.6L4 21V5a2 2 0 0 1 2-2h1"></path>
+                                                    <path d="M8 8h8"></path>
+                                                    <path d="M8 12h8"></path>
+                                                    <path d="M8 16h5"></path>
                                                 </svg>
                                                 @break
                                             @case('profile')
@@ -244,7 +307,7 @@
                                             $isChildActive = request()->routeIs($child['route']);
                                         @endphp
                                         <a
-                                            href="{{ route($child['route']) }}"
+                                            href="{{ route($child['route'], $masterClinicQuery) }}"
                                             class="sidebar-sublink {{ $isChildActive ? 'is-active' : '' }}"
                                         >
                                             <span class="sidebar-subdot" aria-hidden="true"></span>
@@ -255,7 +318,7 @@
                             </div>
                         @else
                             <a
-                                href="{{ $isDisabled ? '#' : route($item['route']) }}"
+                                href="{{ $isDisabled ? '#' : route($item['route'], $masterClinicQuery) }}"
                                 class="sidebar-link {{ $isActive ? 'is-active' : '' }} {{ $isDisabled ? 'is-disabled' : '' }}"
                                 @if ($isDisabled)
                                     aria-disabled="true"
@@ -314,6 +377,13 @@
                                                 <path d="M9.5 12.5 11 14l3.5-3.5"></path>
                                             </svg>
                                             @break
+                                        @case('database')
+                                            <svg viewBox="0 0 24 24">
+                                                <ellipse cx="12" cy="6" rx="7" ry="3"></ellipse>
+                                                <path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"></path>
+                                                <path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"></path>
+                                            </svg>
+                                            @break
                                         @case('users')
                                             <svg viewBox="0 0 24 24">
                                                 <path d="M16 19a4 4 0 0 0-8 0"></path>
@@ -322,6 +392,14 @@
                                                 <path d="M17.5 6.5a2.5 2.5 0 0 1 0 5"></path>
                                                 <path d="M4 19a3.5 3.5 0 0 1 3-3.46"></path>
                                                 <path d="M6.5 6.5a2.5 2.5 0 0 0 0 5"></path>
+                                            </svg>
+                                            @break
+                                        @case('receipt')
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M7 3h10a2 2 0 0 1 2 2v16l-2.5-1.6L14 21l-2.5-1.6L9 21l-2.5-1.6L4 21V5a2 2 0 0 1 2-2h1"></path>
+                                                <path d="M8 8h8"></path>
+                                                <path d="M8 12h8"></path>
+                                                <path d="M8 16h5"></path>
                                             </svg>
                                             @break
                                         @case('profile')

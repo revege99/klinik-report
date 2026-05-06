@@ -84,6 +84,38 @@
         margin-top: 18px;
     }
 
+    .hero-filter {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .hero-filter-field {
+        display: flex;
+        min-width: 220px;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .hero-filter-field label {
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .hero-filter-field select {
+        min-height: 44px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.84);
+        color: #12233b;
+    }
+
     .hero-greeting {
         margin-top: 18px;
         padding: 16px 18px;
@@ -727,18 +759,54 @@
         return 'Rp ' . number_format($value, 0, ',', '.');
     };
 
-    $clinicBrandTitle = $sharedClinicProfile?->nama_pendek ?: $sharedClinicProfile?->nama_klinik ?: config('app.name', 'Klink Report');
-    $clinicBrandName = $sharedClinicProfile?->nama_klinik ?: 'Klinik';
-    $clinicBrandDescription = $sharedClinicProfile?->deskripsi_singkat
-        ?: 'Satu halaman untuk melihat kondisi penerimaan, pengeluaran, kualitas mapping layanan, dan aktivitas input terbaru tanpa perlu bolak-balik menu.';
+    $masterNeutralMode = $showClinicFilter && ! $viewingAllClinics && blank($sharedClinicProfile);
+    $clinicBrandTitle = $masterNeutralMode
+        ? 'Dashboard Pusat'
+        : ($sharedClinicProfile?->nama_pendek ?: $sharedClinicProfile?->nama_klinik ?: config('app.name', 'Klink Report'));
+    $clinicBrandName = $masterNeutralMode
+        ? 'Multi Klinik'
+        : ($sharedClinicProfile?->nama_klinik ?: 'Klinik');
+    $dashboardHeroTitle = ($viewingAllClinics || $masterNeutralMode)
+        ? 'Pusat Kendali Operasional Multi Klinik'
+        : 'Pusat Kendali Operasional ' . $clinicBrandName;
+    $clinicBrandDescription = $masterNeutralMode
+        ? 'Mulai dari dashboard pusat terlebih dahulu, lalu pilih klinik saat Anda ingin memfokuskan transaksi, pengeluaran, dan laporan pada unit tertentu.'
+        : ($sharedClinicProfile?->deskripsi_singkat
+            ?: 'Pantau penerimaan, pengeluaran, kualitas mapping layanan, dan aktivitas input harian dalam satu tampilan yang rapi, ringkas, dan siap dipakai untuk operasional klinik.');
 @endphp
 
 <div class="dashboard-shell">
     <section class="hero-panel">
         <div class="hero-copy">
             <p class="eyebrow">{{ $clinicBrandTitle }}</p>
-            <h1>Dashboard {{ $clinicBrandName }} yang Lebih Terkontrol</h1>
+            <h1>{{ $dashboardHeroTitle }}</h1>
             <p>{{ $clinicBrandDescription }}</p>
+
+            @if ($showClinicFilter)
+                <form method="GET" action="{{ route('dashboard') }}" class="hero-filter">
+                    <div class="hero-filter-field">
+                        <label for="dashboard-clinic-id">Filter Klinik</label>
+                        <select id="dashboard-clinic-id" name="clinic_id">
+                            <option value="" @selected($selectedClinicFilter === '')>Pilih Klinik</option>
+                            <option value="all" @selected($selectedClinicFilter === 'all')>Semua Klinik</option>
+                            @foreach ($clinicOptions as $clinicOption)
+                                <option value="{{ $clinicOption->id }}" @selected($selectedClinicFilter === (string) $clinicOption->id)>
+                                    {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary filter-submit">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 6h16"></path>
+                            <path d="M7 12h10"></path>
+                            <path d="M10 18h4"></path>
+                        </svg>
+                        Filter Data
+                    </button>
+                </form>
+            @endif
 
             <div class="hero-greeting">
                 <strong>{{ $dashboardGreeting['title'] }}</strong>
@@ -747,6 +815,9 @@
             </div>
 
             <div class="hero-tags">
+                @if (! $masterNeutralMode)
+                    <span class="hero-tag">{{ $selectedClinicLabel }}</span>
+                @endif
                 <span class="hero-tag">{{ $todayLabel }}</span>
                 <span class="hero-tag">{{ $monthLabel }}</span>
                 <span class="hero-tag">{{ $monthlyTransactionCount }} transaksi pasien bulan ini</span>

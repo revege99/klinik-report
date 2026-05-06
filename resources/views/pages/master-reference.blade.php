@@ -188,6 +188,7 @@
     }
 
     .form-group input,
+    .form-group select,
     .search-box input {
         width: 100%;
         border: 1px solid #d7e1ef;
@@ -200,6 +201,7 @@
     }
 
     .form-group input:focus,
+    .form-group select:focus,
     .search-box input:focus {
         outline: none;
         border-color: #60a5fa;
@@ -258,7 +260,8 @@
     }
 
     .form-actions,
-    .search-box {
+    .search-box,
+    .row-actions {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -314,6 +317,30 @@
         color: #1d4ed8;
         border: 1px solid rgba(37, 99, 235, 0.12);
         box-shadow: none;
+    }
+
+    .btn-danger {
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: rgba(220, 38, 38, 0.08);
+        color: #b91c1c;
+        border: 1px solid rgba(220, 38, 38, 0.16);
+        box-shadow: none;
+    }
+
+    .btn-danger:hover {
+        background: rgba(220, 38, 38, 0.12);
+    }
+
+    .btn-danger.is-disabled,
+    .btn-danger:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+        transform: none;
+    }
+
+    .inline-action-form {
+        margin: 0;
     }
 
     .table-wrap {
@@ -420,6 +447,60 @@
         color: #475569;
     }
 
+    .direction-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .direction-pill.is-debet {
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+    }
+
+    .direction-pill.is-kredit {
+        background: rgba(249, 115, 22, 0.14);
+        color: #c2410c;
+    }
+
+    .flag-stack {
+        display: grid;
+        gap: 6px;
+    }
+
+    .flag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+    }
+
+    .flag-chip.is-blue {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+    }
+
+    .flag-chip.is-emerald {
+        background: rgba(16, 185, 129, 0.1);
+        color: #047857;
+    }
+
+    .flag-chip.is-slate {
+        background: rgba(148, 163, 184, 0.14);
+        color: #475569;
+    }
+
     .usage-chip {
         display: inline-flex;
         align-items: center;
@@ -483,6 +564,9 @@
     $formAction = $isEditing
         ? route($routeUpdate, $editingItem)
         : route($routeStore);
+    $listingQuery = array_filter([
+        'q' => $search ?: null,
+    ], fn ($value) => filled($value));
 @endphp
 
 <div class="master-shell">
@@ -495,7 +579,13 @@
 
         <div class="hero-stats">
             <article class="hero-stat">
-                <span>{{ $variant === 'layanan' ? 'Total Kode' : 'Total Kategori' }}</span>
+                <span>
+                    {{ $variant === 'layanan'
+                        ? 'Total Kode'
+                        : (in_array($variant, ['komponen', 'administrasi'], true)
+                            ? ($variant === 'komponen' ? 'Total Komponen' : 'Total Administrasi')
+                            : 'Total Kategori') }}
+                </span>
                 <strong>{{ number_format($stats['total'] ?? 0, 0, ',', '.') }}</strong>
             </article>
             <article class="hero-stat">
@@ -503,12 +593,24 @@
                 <strong>{{ number_format($stats['active'] ?? 0, 0, ',', '.') }}</strong>
             </article>
             <article class="hero-stat">
-                <span>{{ $variant === 'layanan' ? 'Mapping SIMRS' : 'Kode Siap Pakai' }}</span>
+                <span>
+                    {{ $variant === 'layanan'
+                        ? 'Mapping SIMRS'
+                        : (in_array($variant, ['komponen', 'administrasi'], true)
+                            ? 'Key Sistem'
+                            : 'Kode Siap Pakai') }}
+                </span>
                 <strong>{{ number_format($stats['mapped'] ?? 0, 0, ',', '.') }}</strong>
             </article>
             <article class="hero-stat">
-                <span>{{ $variant === 'layanan' ? 'Dipakai Transaksi' : 'Dipakai Pengeluaran' }}</span>
-                <strong>{{ number_format($stats['used'] ?? 0, 0, ',', '.') }}</strong>
+                <span>
+                    {{ $variant === 'layanan'
+                        ? 'Target Klaim BPJS'
+                        : (in_array($variant, ['komponen', 'administrasi'], true)
+                            ? 'Dipakai Nilai'
+                            : 'Dipakai Pengeluaran') }}
+                </span>
+                <strong>{{ number_format($variant === 'layanan' ? ($stats['bpjs_target'] ?? 0) : ($stats['used'] ?? 0), 0, ',', '.') }}</strong>
             </article>
         </div>
     </section>
@@ -516,6 +618,12 @@
     @if (session('success'))
         <section class="message-card success">
             <p>{{ session('success') }}</p>
+        </section>
+    @endif
+
+    @if (session('error'))
+        <section class="message-card error">
+            <p>{{ session('error') }}</p>
         </section>
     @endif
 
@@ -538,7 +646,11 @@
                     <p>
                         {{ $variant === 'layanan'
                             ? 'Gunakan kode yang rapi lalu hubungkan dengan kd_poli SIMRS agar mapping transaksi lebih stabil.'
-                            : 'Kategori ini akan dipakai pada input pengeluaran dan otomatis terbaca di laporan kredit.' }}
+                            : (in_array($variant, ['komponen', 'administrasi'], true)
+                                ? ($variant === 'komponen'
+                                    ? 'Komponen aktif akan tampil di modal transaksi pasien dan otomatis terbaca pada rekap bulanan sesuai sisi debet atau kredit.'
+                                    : 'Field administrasi aktif akan tampil dinamis di modal transaksi pasien dan ikut terbaca pada rekap bulanan sesuai sisi laporannya.')
+                                : 'Kategori ini akan dipakai pada input pengeluaran dan otomatis terbaca di laporan kredit.') }}
                     </p>
                 </div>
                 <span class="panel-chip">{{ $isEditing ? 'Mode Edit' : 'Mode Baru' }}</span>
@@ -597,6 +709,101 @@
                                 placeholder="Contoh: Poliklinik Umum"
                             >
                         </div>
+
+                        <div class="form-group is-full">
+                            <label>Target Klaim BPJS</label>
+                            <label class="toggle-wrap">
+                                <input type="hidden" name="is_bpjs_claim_target" value="0">
+                                <input
+                                    type="checkbox"
+                                    name="is_bpjs_claim_target"
+                                    value="1"
+                                    {{ old('is_bpjs_claim_target', $editingItem?->is_bpjs_claim_target ?? false) ? 'checked' : '' }}
+                                >
+                                <span class="toggle-copy">
+                                    <strong>Masukkan klaim BPJS ke layanan ini</strong>
+                                    <span>Jika aktif, pendapatan klaim BPJS pada rekap layanan akan langsung ditambahkan ke baris layanan ini. Hanya satu layanan yang bisa dipilih.</span>
+                                </span>
+                            </label>
+                        </div>
+                    @elseif (in_array($variant, ['komponen', 'administrasi'], true))
+                        <div class="form-group">
+                            <label for="{{ $variant === 'komponen' ? 'kode_komponen' : 'kode_administrasi' }}">
+                                {{ $variant === 'komponen' ? 'Kode Komponen' : 'Kode Administrasi' }}
+                            </label>
+                            <input
+                                id="{{ $variant === 'komponen' ? 'kode_komponen' : 'kode_administrasi' }}"
+                                type="text"
+                                name="{{ $variant === 'komponen' ? 'kode_komponen' : 'kode_administrasi' }}"
+                                value="{{ old($variant === 'komponen' ? 'kode_komponen' : 'kode_administrasi', $variant === 'komponen' ? $editingItem?->kode_komponen : $editingItem?->kode_administrasi) }}"
+                                placeholder="{{ $variant === 'komponen' ? 'Contoh: D14' : 'Contoh: A7' }}"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ $variant === 'komponen' ? 'nama_komponen' : 'nama_administrasi' }}">
+                                {{ $variant === 'komponen' ? 'Nama Komponen' : 'Nama Administrasi' }}
+                            </label>
+                            <input
+                                id="{{ $variant === 'komponen' ? 'nama_komponen' : 'nama_administrasi' }}"
+                                type="text"
+                                name="{{ $variant === 'komponen' ? 'nama_komponen' : 'nama_administrasi' }}"
+                                value="{{ old($variant === 'komponen' ? 'nama_komponen' : 'nama_administrasi', $variant === 'komponen' ? $editingItem?->nama_komponen : $editingItem?->nama_administrasi) }}"
+                                placeholder="{{ $variant === 'komponen' ? 'Contoh: Tindakan Tambahan' : 'Contoh: Titipan Pasien' }}"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="arah_laporan">Arah Laporan</label>
+                            <select id="arah_laporan" name="arah_laporan">
+                                <option value="debet" @selected(old('arah_laporan', $editingItem?->arah_laporan ?? 'debet') === 'debet')>Masuk Debet</option>
+                                <option value="kredit" @selected(old('arah_laporan', $editingItem?->arah_laporan ?? 'debet') === 'kredit')>Masuk Kredit</option>
+                            </select>
+                        </div>
+
+                        @if ($variant === 'komponen')
+                            <div class="form-group">
+                                <label for="peran_sistem">Peran Sistem</label>
+                                <select id="peran_sistem" name="peran_sistem">
+                                    <option value="normal" @selected(old('peran_sistem', $editingItem?->peran_sistem ?? 'normal') === 'normal')>Normal</option>
+                                    <option value="bpjs_selisih" @selected(old('peran_sistem', $editingItem?->peran_sistem ?? 'normal') === 'bpjs_selisih')>Penyesuaian Klaim BPJS</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group is-full">
+                                <label>Pengaturan BPJS</label>
+                                <label class="toggle-wrap">
+                                    <input type="hidden" name="ikut_alokasi_bpjs" value="0">
+                                    <input
+                                        type="checkbox"
+                                        name="ikut_alokasi_bpjs"
+                                        value="1"
+                                        {{ old('ikut_alokasi_bpjs', $editingItem?->ikut_alokasi_bpjs ?? true) ? 'checked' : '' }}
+                                    >
+                                    <span class="toggle-copy">
+                                        <strong>Ikut alokasi BPJS</strong>
+                                        <span>Komponen ini ikut menjadi dasar persentase dan menerima hasil alokasi klaim BPJS.</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="form-group is-full">
+                                <label>Basis Pajak Obat</label>
+                                <label class="toggle-wrap">
+                                    <input type="hidden" name="basis_pajak_obat" value="0">
+                                    <input
+                                        type="checkbox"
+                                        name="basis_pajak_obat"
+                                        value="1"
+                                        {{ old('basis_pajak_obat', $editingItem?->basis_pajak_obat ?? false) ? 'checked' : '' }}
+                                    >
+                                    <span class="toggle-copy">
+                                        <strong>Tandai sebagai basis pajak obat</strong>
+                                        <span>Jika aktif, hasil alokasi klaim komponen ini akan ikut dibaca sebagai dasar pajak obat.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        @endif
                     @else
                         <div class="form-group">
                             <label for="kode_kategori">Kode Pengeluaran</label>
@@ -654,6 +861,15 @@
                     @if ($variant === 'layanan')
                         <code>simrs_kd_poli</code> dipakai sebagai kunci mapping saat menarik data dari
                         <code>reg_periksa.kd_poli</code>. Jadi isi bagian ini sesuai kode poli asli dari SIMRS.
+                        Kalau <code>target klaim BPJS</code> diaktifkan, rekap layanan akan memasukkan total klaim BPJS ke layanan ini tanpa membuat baris terpisah.
+                    @elseif (in_array($variant, ['komponen', 'administrasi'], true))
+                        {{ $variant === 'komponen' ? 'Komponen transaksi' : 'Administrasi pasien' }} aktif otomatis muncul pada modal input transaksi pasien.
+                        Rekap bulanan bagian <code>Detail Transaksi</code> akan membaca urutan, nama, dan arah laporan
+                        <code>debet/kredit</code> dari master ini.
+                        @if ($variant === 'komponen')
+                            Komponen dengan <code>ikut_alokasi_bpjs</code> akan dipakai menghitung persentase klaim BPJS, sedangkan
+                            <code>peran sistem</code> dipakai untuk komponen khusus seperti penyesuaian klaim BPJS.
+                        @endif
                     @else
                         Kode kategori ini akan dipakai untuk rekap kredit bulanan dan tahunan. Urutan laporan menentukan posisi tampil di tabel laporan.
                     @endif
@@ -665,7 +881,7 @@
                     </button>
 
                     @if ($isEditing)
-                        <a href="{{ route($routeIndex, ['q' => $search ?: null]) }}" class="btn btn-muted">Batal Edit</a>
+                        <a href="{{ route($routeIndex, $listingQuery) }}" class="btn btn-muted">Batal Edit</a>
                     @endif
                 </div>
             </form>
@@ -678,7 +894,11 @@
                     <p>
                         {{ $variant === 'layanan'
                             ? 'Daftar master layanan yang dipakai untuk mapping transaksi pasien dan laporan debet.'
-                            : 'Daftar master kategori pengeluaran yang dipakai untuk input kredit dan rekap pengeluaran.' }}
+                            : (in_array($variant, ['komponen', 'administrasi'], true)
+                                ? ($variant === 'komponen'
+                                    ? 'Daftar komponen transaksi yang dipakai di form pasien dan rekap bulanan sesuai arah laporannya.'
+                                    : 'Daftar field administrasi pasien yang dipakai dinamis di form transaksi dan rekap bulanan.')
+                                : 'Daftar master kategori pengeluaran yang dipakai untuk input kredit dan rekap pengeluaran.') }}
                     </p>
                 </div>
 
@@ -698,9 +918,19 @@
                         <thead>
                             <tr>
                                 <th>Kode</th>
-                                <th>{{ $variant === 'layanan' ? 'Layanan' : 'Kategori' }}</th>
+                                <th>{{ $variant === 'layanan' ? 'Layanan' : (in_array($variant, ['komponen', 'administrasi'], true) ? ($variant === 'komponen' ? 'Komponen' : 'Administrasi') : 'Kategori') }}</th>
+                                @if (in_array($variant, ['layanan', 'komponen', 'administrasi'], true))
+                                    <th>{{ $variant === 'layanan' ? 'Mapping SIMRS' : 'Key Sistem' }}</th>
+                                @endif
                                 @if ($variant === 'layanan')
-                                    <th>Mapping SIMRS</th>
+                                    <th>BPJS</th>
+                                @endif
+                                @if (in_array($variant, ['komponen', 'administrasi'], true))
+                                    <th>Arah</th>
+                                @endif
+                                @if ($variant === 'komponen')
+                                    <th>BPJS</th>
+                                    <th>Peran Sistem</th>
                                 @endif
                                 <th>Urutan</th>
                                 <th>Status</th>
@@ -716,21 +946,64 @@
                                     </td>
                                     <td class="name-cell">
                                         <strong>{{ $record['name'] }}</strong>
-                                        <span>{{ $variant === 'layanan' ? 'Kode layanan laporan' : 'Kategori kredit pengeluaran' }}</span>
+                                        <span>
+                                            {{ $variant === 'layanan'
+                                                ? 'Kode layanan laporan'
+                                                : (in_array($variant, ['komponen', 'administrasi'], true)
+                                                    ? ($variant === 'komponen'
+                                                        ? 'Komponen transaksi dinamis'
+                                                        : 'Administrasi transaksi dinamis')
+                                                    : 'Kategori kredit pengeluaran') }}
+                                        </span>
                                     </td>
-                                    @if ($variant === 'layanan')
+                                    @if (in_array($variant, ['layanan', 'komponen', 'administrasi'], true))
                                         <td>
                                             <div class="mapping-stack">
                                                 @if (filled($record['mapping_key']))
-                                                    <span class="mapping-pill">kd_poli: {{ $record['mapping_key'] }}</span>
+                                                    <span class="mapping-pill">
+                                                        {{ $variant === 'layanan' ? 'kd_poli: ' : 'field: ' }}{{ $record['mapping_key'] }}
+                                                    </span>
                                                 @endif
                                                 @if (filled($record['mapping_label']))
                                                     <span class="mapping-pill">{{ $record['mapping_label'] }}</span>
                                                 @endif
                                                 @if (! filled($record['mapping_key']) && ! filled($record['mapping_label']))
-                                                    <span class="mapping-muted">Belum ada mapping SIMRS</span>
+                                                    <span class="mapping-muted">
+                                                        {{ $variant === 'layanan' ? 'Belum ada mapping SIMRS' : 'Key sistem belum tersedia' }}
+                                                    </span>
                                                 @endif
                                             </div>
+                                        </td>
+                                    @endif
+                                    @if ($variant === 'layanan')
+                                        <td>
+                                            <span class="flag-chip {{ !empty($record['is_bpjs_claim_target']) ? 'is-blue' : 'is-slate' }}">
+                                                {{ !empty($record['is_bpjs_claim_target']) ? 'Target Klaim BPJS' : 'Layanan Biasa' }}
+                                            </span>
+                                        </td>
+                                    @endif
+                                    @if (in_array($variant, ['komponen', 'administrasi'], true))
+                                        <td>
+                                            <span class="direction-pill {{ ($record['direction_key'] ?? 'debet') === 'kredit' ? 'is-kredit' : 'is-debet' }}">
+                                                {{ $record['direction_label'] ?? 'Debet' }}
+                                            </span>
+                                        </td>
+                                    @endif
+                                    @if ($variant === 'komponen')
+                                        <td>
+                                            <div class="flag-stack">
+                                                <span class="flag-chip {{ !empty($record['ikut_alokasi_bpjs']) ? 'is-blue' : 'is-slate' }}">
+                                                    {{ !empty($record['ikut_alokasi_bpjs']) ? 'Ikut Alokasi BPJS' : 'Tidak Ikut Alokasi' }}
+                                                </span>
+                                                <span class="flag-chip {{ !empty($record['basis_pajak_obat']) ? 'is-emerald' : 'is-slate' }}">
+                                                    {{ !empty($record['basis_pajak_obat']) ? 'Basis Pajak Obat' : 'Bukan Basis Pajak' }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="flag-chip {{ ($record['peran_sistem'] ?? null) === 'bpjs_selisih' ? 'is-blue' : 'is-slate' }}">
+                                                {{ $record['peran_sistem_label'] ?? 'Normal' }}
+                                            </span>
                                         </td>
                                     @endif
                                     <td>{{ number_format($record['sort_order'], 0, ',', '.') }}</td>
@@ -743,12 +1016,40 @@
                                         <span class="usage-chip">{{ number_format($record['usage_count'], 0, ',', '.') }} data</span>
                                     </td>
                                     <td>
-                                        <a
-                                            href="{{ route($routeIndex, ['edit' => $record['id'], 'q' => $search ?: null]) }}"
-                                            class="btn btn-ghost"
-                                        >
-                                            Edit
-                                        </a>
+                                        <div class="row-actions">
+                                            <a
+                                                href="{{ route($routeIndex, array_merge($listingQuery, ['edit' => $record['id']])) }}"
+                                                class="btn btn-ghost"
+                                            >
+                                                Edit
+                                            </a>
+
+                                            @if ($record['is_deletable'] ?? true)
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route($routeDestroy, $record['id']) }}"
+                                                    class="inline-action-form"
+                                                    data-confirm-delete
+                                                    data-confirm-title="Hapus data master ini?"
+                                                    data-confirm-message="Data master yang dihapus tidak bisa dikembalikan lagi."
+                                                    data-confirm-button="Ya, hapus data"
+                                                >
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="q" value="{{ $search }}">
+                                                    <button type="submit" class="btn btn-danger">Hapus</button>
+                                                </form>
+                                            @else
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-danger is-disabled"
+                                                    disabled
+                                                    title="Data ini sudah dipakai transaksi, jadi tidak bisa dihapus."
+                                                >
+                                                    Hapus
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach

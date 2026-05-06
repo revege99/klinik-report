@@ -34,6 +34,7 @@ class MasterLayananSeeder extends Seeder
                     'nama_layanan' => $item['nama_layanan'],
                     'simrs_kd_poli' => $item['simrs_kd_poli'],
                     'simrs_nm_poli' => $item['simrs_nm_poli'],
+                    'is_bpjs_claim_target' => false,
                     'urutan_laporan' => $index + 1,
                     'is_active' => true,
                 ],

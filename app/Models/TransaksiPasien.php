@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TransaksiPasien extends Model
 {
@@ -13,6 +14,7 @@ class TransaksiPasien extends Model
     protected $table = 'transaksi_pasien';
 
     protected $fillable = [
+        'clinic_profile_id',
         'simrs_no_rawat',
         'simrs_no_reg',
         'tanggal',
@@ -33,28 +35,10 @@ class TransaksiPasien extends Model
         'icd',
         'diagnosa',
         'farmasi',
-        'uang_daftar',
-        'uang_periksa',
-        'uang_obat',
-        'uang_bersalin',
-        'jasa_dokter',
         'jml_hari',
-        'rawat_inap',
         'jml_visit',
-        'honor_dr_visit',
-        'oksigen',
-        'perlengk_bayi',
-        'jaspel_nakes',
-        'bmhp',
-        'pkl',
-        'lain_lain',
         'jumlah_rp',
-        'utang_pasien',
-        'utang',
-        'bayar_utang_pasien',
-        'derma_solidaritas',
-        'saldo_kredit',
-        'saldo',
+        'jumlah_kredit',
         'petugas_admin',
         'keterangan',
     ];
@@ -62,31 +46,14 @@ class TransaksiPasien extends Model
     protected function casts(): array
     {
         return [
+            'clinic_profile_id' => 'integer',
             'tanggal' => 'date',
             'bulan' => 'integer',
             'user_id' => 'integer',
-            'uang_daftar' => 'decimal:2',
-            'uang_periksa' => 'decimal:2',
-            'uang_obat' => 'decimal:2',
-            'uang_bersalin' => 'decimal:2',
-            'jasa_dokter' => 'decimal:2',
             'jml_hari' => 'integer',
-            'rawat_inap' => 'decimal:2',
             'jml_visit' => 'integer',
-            'honor_dr_visit' => 'decimal:2',
-            'oksigen' => 'decimal:2',
-            'perlengk_bayi' => 'decimal:2',
-            'jaspel_nakes' => 'decimal:2',
-            'bmhp' => 'decimal:2',
-            'pkl' => 'decimal:2',
-            'lain_lain' => 'decimal:2',
             'jumlah_rp' => 'decimal:2',
-            'utang_pasien' => 'decimal:2',
-            'utang' => 'decimal:2',
-            'bayar_utang_pasien' => 'decimal:2',
-            'derma_solidaritas' => 'decimal:2',
-            'saldo_kredit' => 'decimal:2',
-            'saldo' => 'decimal:2',
+            'jumlah_kredit' => 'decimal:2',
         ];
     }
 
@@ -98,5 +65,20 @@ class TransaksiPasien extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function clinicProfile(): BelongsTo
+    {
+        return $this->belongsTo(ClinicProfile::class);
+    }
+
+    public function komponenTransaksi(): HasMany
+    {
+        return $this->hasMany(TransaksiPasienKomponen::class);
+    }
+
+    public function administrasiTransaksi(): HasMany
+    {
+        return $this->hasMany(TransaksiPasienAdministrasi::class);
     }
 }

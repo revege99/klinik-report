@@ -464,8 +464,8 @@
             <p class="page-eyebrow">Administrasi Akses</p>
             <h1>Manajemen User & Pegawai</h1>
             <p>
-                Tambahkan akun baru dari UI, atur role admin atau staff, lalu lengkapi identitas pegawai
-                agar operator pada transaksi dan pengeluaran selalu tercatat lebih rapi.
+                Tambahkan akun baru dari UI, atur level staff, admin, atau master, lalu hubungkan user
+                ke klinik yang tepat agar akses data tetap rapi dan aman.
             </p>
         </div>
 
@@ -475,16 +475,16 @@
                 <strong>{{ number_format($stats['total'] ?? 0, 0, ',', '.') }}</strong>
             </article>
             <article class="hero-stat">
-                <span>Admin</span>
+                <span>Master</span>
+                <strong>{{ number_format($stats['master'] ?? 0, 0, ',', '.') }}</strong>
+            </article>
+            <article class="hero-stat">
+                <span>Admin Klinik</span>
                 <strong>{{ number_format($stats['admin'] ?? 0, 0, ',', '.') }}</strong>
             </article>
             <article class="hero-stat">
-                <span>User Aktif</span>
-                <strong>{{ number_format($stats['active'] ?? 0, 0, ',', '.') }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Profil Pegawai</span>
-                <strong>{{ number_format($stats['pegawai'] ?? 0, 0, ',', '.') }}</strong>
+                <span>Staff</span>
+                <strong>{{ number_format($stats['staff'] ?? 0, 0, ',', '.') }}</strong>
             </article>
         </div>
     </section>
@@ -554,6 +554,19 @@
                         <select id="role" name="role">
                             <option value="staff" @selected(old('role', $editingUser?->role ?? 'staff') === 'staff')>Staff</option>
                             <option value="admin" @selected(old('role', $editingUser?->role) === 'admin')>Admin</option>
+                            <option value="master" @selected(old('role', $editingUser?->role) === 'master')>Master</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="clinic_profile_id">Klinik</label>
+                        <select id="clinic_profile_id" name="clinic_profile_id">
+                            <option value="">Pilih klinik</option>
+                            @foreach ($clinicOptions as $clinicOption)
+                                <option value="{{ $clinicOption->id }}" @selected((string) old('clinic_profile_id', $editingUser?->clinic_profile_id) === (string) $clinicOption->id)>
+                                    {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -595,8 +608,8 @@
                 </div>
 
                 <div class="helper-note">
-                    Hanya user dengan <strong>role admin</strong> yang bisa membuka menu ini. Untuk edit user lama, pilih tombol
-                    <strong>Edit</strong> pada tabel di samping.
+                    User <strong>master</strong> bisa lintas semua klinik. User <strong>admin</strong> dan
+                    <strong>staff</strong> wajib dihubungkan ke klinik agar data operasionalnya otomatis terscope.
                 </div>
 
                 <div class="form-actions">
@@ -633,6 +646,7 @@
                             <tr>
                                 <th>User</th>
                                 <th>Akses</th>
+                                <th>Klinik</th>
                                 <th>Pegawai</th>
                                 <th>Login Terakhir</th>
                                 <th>Status</th>
@@ -648,6 +662,14 @@
                                     </td>
                                     <td>
                                         <span class="role-pill">{{ strtoupper($user->role ?: 'staff') }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="meta-text">
+                                            {{ $user->clinicProfile?->nama_pendek ?: $user->clinicProfile?->nama_klinik ?: 'Semua Klinik' }}
+                                        </div>
+                                        <div class="meta-text">
+                                            {{ $user->clinicProfile?->kode_klinik ?: 'MASTER' }}
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="meta-text">

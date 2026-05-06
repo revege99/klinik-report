@@ -33,7 +33,7 @@
 
     .hero-card {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: end;
         gap: 14px 16px;
         padding: 18px 20px;
@@ -55,11 +55,18 @@
         line-height: 1.1;
     }
 
+    .hero-copy p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 0.8rem;
+        line-height: 1.7;
+    }
+
     .hero-stats {
         display: grid;
-        min-width: 340px;
+        min-width: 420px;
         gap: 8px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .hero-stat,
@@ -102,6 +109,11 @@
         border-color: rgba(34, 197, 94, 0.18);
     }
 
+    .summary-card.is-info {
+        background: linear-gradient(180deg, rgba(240, 249, 255, 0.96), rgba(224, 242, 254, 0.9));
+        border-color: rgba(56, 189, 248, 0.16);
+    }
+
     .filter-form {
         display: flex;
         flex-wrap: wrap;
@@ -126,7 +138,8 @@
         text-transform: uppercase;
     }
 
-    .field-wrap input {
+    .field-wrap input,
+    .field-wrap select {
         height: 42px;
         width: 100%;
         border: 1px solid #d7e1ef;
@@ -138,7 +151,8 @@
         transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
     }
 
-    .field-wrap input:focus {
+    .field-wrap input:focus,
+    .field-wrap select:focus {
         outline: none;
         border-color: #60a5fa;
         background: white;
@@ -173,7 +187,7 @@
         display: grid;
         gap: 14px;
         padding: 20px;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 
     .table-card {
@@ -183,8 +197,8 @@
 
     .report-head {
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
+        align-items: flex-start;
+        justify-content: space-between;
         gap: 16px;
         margin-bottom: 18px;
         min-width: 0;
@@ -202,6 +216,63 @@
         margin: 4px 0 0;
         color: #64748b;
         font-size: 0.75rem;
+    }
+
+    .report-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: rgba(15, 23, 42, 0.05);
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .penjamin-tabs {
+        grid-column: 1 / -1;
+        display: inline-flex;
+        width: fit-content;
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 6px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.96));
+    }
+
+    .penjamin-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 14px;
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .penjamin-tab:hover {
+        color: #1e293b;
+        transform: translateY(-1px);
+    }
+
+    .penjamin-tab.is-active {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
     }
 
     .scroll-rail {
@@ -431,13 +502,8 @@
             align-items: start;
         }
 
-        .hero-stats {
-            grid-column: 1 / -1;
-            min-width: 0;
-        }
-
         .summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
     }
 
@@ -472,8 +538,18 @@
             align-items: flex-start;
         }
 
+        .report-meta {
+            justify-content: flex-start;
+        }
+
         .scroll-rail {
             padding: 8px;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .summary-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -506,6 +582,14 @@
 
         return 'Rp ' . $formatNominal($value);
     };
+    $bpjsClaimCode = $bpjsClaimSummary['komponen_selisih']?->kode_komponen ?: 'BPJS';
+    $bpjsClaimName = $bpjsClaimSummary['komponen_selisih']?->nama_komponen ?: 'Klaim BPJS Bulanan';
+    $bpjsClaimCount = (int) ($bpjsClaimSummary['count'] ?? 0);
+    $bpjsClaimSelisih = (float) ($bpjsClaimSummary['selisih_nominal'] ?? 0);
+    $tabQueryBase = array_filter([
+        'tahun' => $selectedYear,
+        'clinic_id' => $selectedClinicFilter !== '' ? $selectedClinicFilter : null,
+    ], fn ($value) => filled($value));
 @endphp
 
 <div class="annual-shell">
@@ -513,13 +597,29 @@
         <div class="hero-copy">
             <p class="page-eyebrow">Laporan Tahunan</p>
             <h1>Rekap Tahunan</h1>
+            <p>Rekap ini menampilkan versi klinik, tambahan klaim BPJS tahunan, dan total sesudah klaim per bulan agar pembacaan penerimaan tetap konsisten.</p>
         </div>
 
         <form method="GET" action="{{ route('rekap-tahunan') }}" class="filter-form">
+            <input type="hidden" name="penjamin" value="{{ $selectedPenjaminMode }}">
             <div class="field-wrap">
                 <label for="tahun">Filter Tahun</label>
                 <input id="tahun" type="number" name="tahun" min="2000" max="2100" value="{{ $selectedYear }}">
             </div>
+
+            @if ($showClinicFilter)
+                <div class="field-wrap">
+                    <label for="rekap-tahun-clinic-id">Klinik</label>
+                    <select id="rekap-tahun-clinic-id" name="clinic_id">
+                        <option value="all" @selected($selectedClinicFilter === 'all')>Semua Klinik</option>
+                        @foreach ($clinicOptions as $clinicOption)
+                            <option value="{{ $clinicOption->id }}" @selected($selectedClinicFilter === (string) $clinicOption->id)>
+                                {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
 
             <button type="submit" class="btn btn-primary filter-submit">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -531,27 +631,47 @@
             </button>
         </form>
 
-        <div class="hero-stats">
-            <article class="hero-stat">
-                <span>Periode</span>
-                <strong>{{ $selectedYear }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Total Penerimaan</span>
-                <strong>{{ $formatRupiah($annualDebitTotal) }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Total Pengeluaran</span>
-                <strong>{{ $formatRupiah($annualKreditTotal) }}</strong>
-            </article>
+        <div class="penjamin-tabs" role="tablist" aria-label="Filter penjamin laporan tahunan">
+            @foreach ([
+                'all' => 'Semua Penjamin',
+                'umum' => 'Umum',
+                'bpjs' => 'BPJS',
+            ] as $tabValue => $tabLabel)
+                <a
+                    href="{{ route('rekap-tahunan', array_merge($tabQueryBase, ['penjamin' => $tabValue])) }}"
+                    class="penjamin-tab {{ $selectedPenjaminMode === $tabValue ? 'is-active' : '' }}"
+                    role="tab"
+                    aria-selected="{{ $selectedPenjaminMode === $tabValue ? 'true' : 'false' }}"
+                >
+                    {{ $tabLabel }}
+                </a>
+            @endforeach
         </div>
     </section>
 
     <section class="summary-grid">
+        <article class="summary-card is-info">
+            <span>Mode Penjamin</span>
+            <strong>{{ $selectedPenjaminLabel }}</strong>
+            <p>{{ $viewingAllClinics ? 'Semua klinik' : $selectedClinicLabel }} · Tahun {{ $selectedYear }}.</p>
+        </article>
+
         <article class="summary-card">
-            <span>Penerimaan Tahunan</span>
+            <span>Versi Klinik Tahunan</span>
+            <strong>{{ $formatRupiah($annualDebitTotalVersiKlinik) }}</strong>
+            <p>Total penerimaan versi klinik berdasarkan filter penjamin pada tahun {{ $selectedYear }}.</p>
+        </article>
+
+        <article class="summary-card">
+            <span>Klaim BPJS Tahunan</span>
+            <strong>{{ $formatRupiah($annualBpjsClaimTotal) }}</strong>
+            <p>{{ $selectedPenjaminMode === 'umum' ? 'Mode umum tidak memakai klaim BPJS.' : ($bpjsClaimCount > 0 ? $bpjsClaimCount . ' data klaim bulanan terbaca.' : 'Belum ada klaim BPJS yang tercatat.') }}</p>
+        </article>
+
+        <article class="summary-card">
+            <span>Setelah Klaim</span>
             <strong>{{ $formatRupiah($annualDebitTotal) }}</strong>
-            <p>Total debet dari transaksi pasien sepanjang tahun {{ $selectedYear }}.</p>
+            <p>Total penerimaan tahunan setelah klaim BPJS ditambahkan ke sisi debet.</p>
         </article>
 
         <article class="summary-card">
@@ -565,25 +685,19 @@
             <strong>{{ $formatRupiah($annualSaldo) }}</strong>
             <p>Selisih penerimaan dengan pengeluaran tahunan.</p>
         </article>
-
-        <article class="summary-card">
-            <span>Kode Penerimaan</span>
-            <strong>{{ $penerimaanRows->count() }}</strong>
-            <p>Jumlah baris layanan yang dipakai untuk penerimaan tahunan.</p>
-        </article>
-
-        <article class="summary-card">
-            <span>Kategori Kredit</span>
-            <strong>{{ $pengeluaranRows->count() }}</strong>
-            <p>Jumlah baris kategori pengeluaran yang masuk ke sisi kredit.</p>
-        </article>
     </section>
 
     <section class="table-card">
         <div class="report-head">
             <div>
-                <h2>Rekap Penerimaan dan Pengeluaran Tahun {{ $selectedYear }}</h2>
-                <p>Tabel dibuat lebar agar struktur per bulan tetap jelas dan bisa discroll horizontal seperti format laporan Excel.</p>
+                <h2>Rekap Penerimaan dan Pengeluaran Tahun {{ $selectedYear }} · {{ $selectedPenjaminLabel }}</h2>
+                <p>Tabel dibuat lebar agar struktur per bulan tetap jelas. Untuk BPJS, subtotal versi klinik dan total sesudah klaim ditampilkan terpisah.</p>
+            </div>
+
+            <div class="report-meta">
+                @if ($selectedPenjaminMode !== 'umum')
+                    <span class="meta-pill">Klaim BPJS: {{ $bpjsClaimCount }} data</span>
+                @endif
             </div>
         </div>
 
@@ -614,7 +728,7 @@
                 </thead>
                 <tbody>
                     <tr class="section-row">
-                        <td colspan="{{ 3 + ($monthHeaders->count() * 2) }}">Penerimaan</td>
+                        <td colspan="{{ 3 + ($monthHeaders->count() * 2) }}">A. Pendapatan Berdasarkan Layanan</td>
                     </tr>
 
                     @foreach ($penerimaanRows as $index => $row)
@@ -632,15 +746,104 @@
                     @endforeach
 
                     <tr class="subtotal-row">
-                        <td colspan="3" class="sticky-summary">Jumlah Berdasarkan Jenis Penerimaan</td>
+                        <td colspan="3" class="sticky-summary">Subtotal Versi Klinik</td>
                         @foreach ($monthHeaders as $month)
-                            <td class="is-number">{{ $formatNominal($penerimaanMonthlyTotals[$month['number']] ?? 0) }}</td>
+                            <td class="is-number">{{ $formatNominal($penerimaanMonthlyTotalsVersiKlinik[$month['number']] ?? 0) }}</td>
                             <td class="is-number">-</td>
                         @endforeach
                     </tr>
 
+                    @if ($hasBpjsClaimRows && $bpjsClaimRow && ! $bpjsClaimMergedIntoLayanan)
+                        <tr>
+                            <td class="no-cell sticky-no">{{ $penerimaanRows->count() + 1 }}</td>
+                            <td class="keterangan-cell sticky-keterangan">
+                                <span class="truncate-text" title="{{ $bpjsClaimName }}">{{ $bpjsClaimName }}</span>
+                            </td>
+                            <td class="code-cell sticky-code">{{ $bpjsClaimCode }}</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal(data_get($bpjsClaimRow, 'months.' . $month['number'] . '.debet', 0)) }}</td>
+                                <td class="is-number">-</td>
+                            @endforeach
+                        </tr>
+                    @endif
+                    @if ($hasBpjsClaimRows)
+                        <tr class="subtotal-row">
+                            <td colspan="3" class="sticky-summary">Total Setelah Klaim BPJS</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($penerimaanMonthlyTotals[$month['number']] ?? 0) }}</td>
+                                <td class="is-number">-</td>
+                            @endforeach
+                        </tr>
+                        <tr class="balance-row {{ $bpjsClaimSelisih < 0 ? 'is-negative' : '' }}">
+                            <td colspan="3" class="sticky-summary">Selisih Klaim vs Versi Klinik</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($bpjsClaimSummary['monthly_selisih_debet'][$month['number']] ?? 0) }}</td>
+                                <td class="is-number">{{ $formatNominal($bpjsClaimSummary['monthly_selisih_kredit'][$month['number']] ?? 0) }}</td>
+                            @endforeach
+                        </tr>
+                    @else
+                        <tr class="subtotal-row">
+                            <td colspan="3" class="sticky-summary">Jumlah Berdasarkan Jenis Penerimaan</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($penerimaanMonthlyTotals[$month['number']] ?? 0) }}</td>
+                                <td class="is-number">-</td>
+                            @endforeach
+                        </tr>
+                    @endif
+
                     <tr class="section-row">
-                        <td colspan="{{ 3 + ($monthHeaders->count() * 2) }}">Biaya Pengeluaran</td>
+                        <td colspan="{{ 3 + ($monthHeaders->count() * 2) }}">B. Detail Transaksi</td>
+                    </tr>
+
+                    @foreach ($fieldTransaksiRows as $index => $row)
+                        <tr>
+                            <td class="no-cell sticky-no">{{ $index + 1 }}</td>
+                            <td class="keterangan-cell sticky-keterangan">
+                                <span class="truncate-text" title="{{ $row['keterangan'] }}">{{ $row['keterangan'] }}</span>
+                            </td>
+                            <td class="code-cell sticky-code">{{ $row['kode'] }}</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal(data_get($row, 'months.' . $month['number'] . '.debet', 0)) }}</td>
+                                <td class="is-number">{{ $formatNominal(data_get($row, 'months.' . $month['number'] . '.kredit', 0)) }}</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+
+                    <tr class="subtotal-row">
+                        <td colspan="3" class="sticky-summary">Subtotal Detail Versi Klinik</td>
+                        @foreach ($monthHeaders as $month)
+                            <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsVersiKlinikDebet[$month['number']] ?? 0) }}</td>
+                            <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsVersiKlinikKredit[$month['number']] ?? 0) }}</td>
+                        @endforeach
+                    </tr>
+
+                    @if ($hasBpjsClaimRows)
+                        <tr class="subtotal-row">
+                            <td colspan="3" class="sticky-summary">Total Detail Setelah Klaim BPJS</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsDebet[$month['number']] ?? 0) }}</td>
+                                <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsKredit[$month['number']] ?? 0) }}</td>
+                            @endforeach
+                        </tr>
+                        <tr class="balance-row {{ $bpjsClaimSelisih < 0 ? 'is-negative' : '' }}">
+                            <td colspan="3" class="sticky-summary">Selisih Klaim vs Versi Klinik</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($bpjsClaimSummary['monthly_selisih_debet'][$month['number']] ?? 0) }}</td>
+                                <td class="is-number">{{ $formatNominal($bpjsClaimSummary['monthly_selisih_kredit'][$month['number']] ?? 0) }}</td>
+                            @endforeach
+                        </tr>
+                    @else
+                        <tr class="subtotal-row">
+                            <td colspan="3" class="sticky-summary">Total Detail Transaksi</td>
+                            @foreach ($monthHeaders as $month)
+                                <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsDebet[$month['number']] ?? 0) }}</td>
+                                <td class="is-number">{{ $formatNominal($fieldTransaksiMonthlyTotalsKredit[$month['number']] ?? 0) }}</td>
+                            @endforeach
+                        </tr>
+                    @endif
+
+                    <tr class="section-row">
+                        <td colspan="{{ 3 + ($monthHeaders->count() * 2) }}">C. Pengeluaran</td>
                     </tr>
 
                     @foreach ($pengeluaranRows as $index => $row)

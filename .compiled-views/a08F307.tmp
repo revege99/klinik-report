@@ -1,0 +1,332 @@
+<?php
+    $formattedMonth = \Carbon\Carbon::createFromFormat('Y-m', $selectedMonth)->locale('id')->translatedFormat('F Y');
+    $printedAt = now()->locale('id')->translatedFormat('d F Y');
+    $bpjsClaimCode = $bpjsClaimSummary['komponen_selisih']?->kode_komponen ?: 'BPJS';
+    $bpjsClaimName = $bpjsClaimSummary['komponen_selisih']?->nama_komponen ?: 'Klaim BPJS Bulanan';
+    $bpjsClaimCount = (int) ($bpjsClaimSummary['count'] ?? 0);
+    $bpjsClaimDebit = (float) ($bpjsClaimSummary['debet'] ?? 0);
+    $bpjsClaimKredit = (float) ($bpjsClaimSummary['kredit'] ?? 0);
+    $bpjsClaimSelisih = (float) ($bpjsClaimSummary['selisih_nominal'] ?? 0);
+    $bpjsClaimDetailLabel = $bpjsClaimCount > 0
+        ? $bpjsClaimName . ' - ' . $bpjsClaimCount . ' data klaim'
+        : $bpjsClaimName;
+    $formatNominal = function ($value) {
+        $value = (float) $value;
+
+        if (abs($value) < 0.01) {
+            return '-';
+        }
+
+        if ($value < 0) {
+            return '-Rp ' . number_format(abs($value), 0, ',', '.');
+        }
+
+        return 'Rp ' . number_format($value, 0, ',', '.');
+    };
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <title>Rekap Bulanan <?php echo e($formattedMonth); ?></title>
+    <style>
+        @page {
+            margin: 24px;
+        }
+
+        body {
+            color: #1f2937;
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .page {
+            width: 100%;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .report-header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-header p {
+            margin: 4px 0 0;
+            font-size: 11px;
+        }
+
+        .report-title {
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-subtitle {
+            margin-top: 3px;
+            font-size: 11px;
+        }
+
+        .meta {
+            width: 100%;
+            margin-bottom: 14px;
+            border-collapse: collapse;
+        }
+
+        .meta td {
+            padding: 3px 0;
+            vertical-align: top;
+        }
+
+        .meta .label {
+            width: 120px;
+            font-weight: 700;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .report-table th,
+        .report-table td {
+            border: 1px solid #94a3b8;
+            padding: 7px 8px;
+            vertical-align: top;
+        }
+
+        .report-table th {
+            background: #e2e8f0;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: left;
+            text-transform: uppercase;
+        }
+
+        .report-table .number {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .report-table .date {
+            white-space: nowrap;
+        }
+
+        .report-table .section-row td {
+            background: #f1f5f9;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-table .subtotal-row td,
+        .report-table .total-row td {
+            font-weight: 700;
+        }
+
+        .report-table .subtotal-row td {
+            background: #f8fafc;
+        }
+
+        .report-table .total-row td,
+        .report-table .balance-row td {
+            background: #eff6ff;
+        }
+
+        .signature-wrap {
+            width: 100%;
+            margin-top: 26px;
+        }
+
+        .signature-box {
+            width: 240px;
+            margin-left: auto;
+            text-align: center;
+            page-break-inside: avoid;
+        }
+
+        .signature-space {
+            height: 70px;
+        }
+
+        .signature-name {
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
+        .signature-role {
+            margin-top: 4px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="report-header">
+            <h1><?php echo e($clinicPdfName); ?></h1>
+            <p><?php echo e($clinicPdfAddress); ?></p>
+            <div class="report-title">Laporan Keuangan Bulan <?php echo e($formattedMonth); ?></div>
+            <div class="report-subtitle">Periode <?php echo e($periodLabel); ?> - Mode Penjamin <?php echo e($selectedPenjaminLabel); ?></div>
+        </div>
+
+        <table class="meta">
+            <tr>
+                <td class="label">Tanggal Cetak</td>
+                <td>: <?php echo e($printedAt); ?></td>
+            </tr>
+            <tr>
+                <td class="label">Status Balance</td>
+                <td>: <?php echo e($isBalanced ? 'Sesuai' : 'Belum Sama'); ?></td>
+            </tr>
+            <tr>
+                <td class="label">Saldo Bulanan</td>
+                <td>: <?php echo e($formatNominal($saldoAkhir)); ?></td>
+            </tr>
+        </table>
+
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th style="width: 18%;">Tanggal</th>
+                    <th style="width: 38%;">Keterangan</th>
+                    <th style="width: 12%;">Kode</th>
+                    <th style="width: 16%;" class="number">Debet</th>
+                    <th style="width: 16%;" class="number">Kredit</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="section-row">
+                    <td colspan="5">A. Pendapatan Berdasarkan Layanan</td>
+                </tr>
+                <?php $__currentLoopData = $layananRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <tr>
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td><?php echo e($row['keterangan']); ?></td>
+                        <td><?php echo e($row['kode']); ?></td>
+                        <td class="number"><?php echo e($formatNominal($row['debet'])); ?></td>
+                        <td class="number"><?php echo e($formatNominal($row['kredit'])); ?></td>
+                    </tr>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <tr class="subtotal-row">
+                    <td colspan="3">Subtotal Versi Klinik</td>
+                    <td class="number"><?php echo e($formatNominal($totalDebitLayananVersiKlinik)); ?></td>
+                    <td class="number"><?php echo e($formatNominal($totalKreditLayananVersiKlinik)); ?></td>
+                </tr>
+                <?php if($hasBpjsClaimRows && ! $bpjsClaimMergedIntoLayanan): ?>
+                    <tr class="subtotal-row">
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td><?php echo e($bpjsClaimDetailLabel); ?></td>
+                        <td><?php echo e($bpjsClaimCode); ?></td>
+                        <td class="number"><?php echo e($formatNominal($bpjsClaimDebit)); ?></td>
+                        <td class="number"><?php echo e($formatNominal($bpjsClaimKredit)); ?></td>
+                    </tr>
+                <?php endif; ?>
+                <?php if($hasBpjsClaimRows): ?>
+                    <tr class="total-row">
+                        <td colspan="3">Total Setelah Klaim BPJS</td>
+                        <td class="number"><?php echo e($formatNominal($totalDebitLayanan)); ?></td>
+                        <td class="number"><?php echo e($formatNominal($totalKreditLayanan)); ?></td>
+                    </tr>
+                    <tr class="balance-row">
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td>Selisih Klaim vs Versi Klinik</td>
+                        <td>INFO</td>
+                        <td class="number"><?php echo e($bpjsClaimSelisih > 0 ? $formatNominal($bpjsClaimSelisih) : '-'); ?></td>
+                        <td class="number"><?php echo e($bpjsClaimSelisih < 0 ? $formatNominal(abs($bpjsClaimSelisih)) : '-'); ?></td>
+                    </tr>
+                <?php else: ?>
+                    <tr class="total-row">
+                        <td colspan="3">Total Pendapatan Berdasarkan Layanan</td>
+                        <td class="number"><?php echo e($formatNominal($totalDebitLayanan)); ?></td>
+                        <td class="number"><?php echo e($formatNominal($totalKreditLayanan)); ?></td>
+                    </tr>
+                <?php endif; ?>
+
+                <tr class="section-row">
+                    <td colspan="5">B. Detail Transaksi</td>
+                </tr>
+                <?php $__currentLoopData = $komponenRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <tr>
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td><?php echo e($row['keterangan']); ?></td>
+                        <td><?php echo e($row['kode']); ?></td>
+                        <td class="number"><?php echo e($formatNominal($row['debet'])); ?></td>
+                        <td class="number"><?php echo e($formatNominal($row['kredit'])); ?></td>
+                    </tr>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <tr class="subtotal-row">
+                    <td colspan="3">Subtotal Detail Versi Klinik</td>
+                    <td class="number"><?php echo e($formatNominal($totalDebitKomponenVersiKlinik)); ?></td>
+                    <td class="number"><?php echo e($formatNominal($totalKreditKomponenVersiKlinik)); ?></td>
+                </tr>
+                <?php if($hasBpjsClaimRows): ?>
+                    <tr class="total-row">
+                        <td colspan="3">Total Detail Setelah Klaim BPJS</td>
+                        <td class="number"><?php echo e($formatNominal($totalDebitKomponen)); ?></td>
+                        <td class="number"><?php echo e($formatNominal($totalKreditKomponen)); ?></td>
+                    </tr>
+                <?php else: ?>
+                    <tr class="total-row">
+                        <td colspan="3">Total Detail Transaksi</td>
+                        <td class="number"><?php echo e($formatNominal($totalDebitKomponen)); ?></td>
+                        <td class="number"><?php echo e($formatNominal($totalKreditKomponen)); ?></td>
+                    </tr>
+                <?php endif; ?>
+
+                <tr class="section-row">
+                    <td colspan="5">C. Pengeluaran</td>
+                </tr>
+                <?php $__empty_1 = true; $__currentLoopData = $pengeluaranPrintRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                    <tr>
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td><?php echo e($row['keterangan']); ?></td>
+                        <td><?php echo e($row['kode']); ?></td>
+                        <td class="number">-</td>
+                        <td class="number"><?php echo e($formatNominal($row['kredit'])); ?></td>
+                    </tr>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                    <tr>
+                        <td class="date"><?php echo e($periodLabel); ?></td>
+                        <td colspan="4">Tidak ada pengeluaran untuk periode ini.</td>
+                    </tr>
+                <?php endif; ?>
+                <tr class="subtotal-row">
+                    <td colspan="3">Subtotal Pengeluaran</td>
+                    <td class="number">-</td>
+                    <td class="number"><?php echo e($formatNominal($totalKreditPengeluaran)); ?></td>
+                </tr>
+
+                <tr class="total-row">
+                    <td colspan="3">Total Kredit Keseluruhan</td>
+                    <td class="number">-</td>
+                    <td class="number"><?php echo e($formatNominal($totalKredit)); ?></td>
+                </tr>
+                <tr class="balance-row">
+                    <td colspan="3">Saldo Bulanan</td>
+                    <td class="number"><?php echo e($formatNominal($saldoAkhir)); ?></td>
+                    <td class="number">-</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="signature-wrap">
+            <div class="signature-box">
+                <div>Ditandatangani oleh,</div>
+                <div class="signature-space"></div>
+                <div class="signature-name"><?php echo e($reportSignerName); ?></div>
+                <?php if(filled($reportSignerRole)): ?>
+                    <div class="signature-role"><?php echo e($reportSignerRole); ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<?php /**PATH C:\laragon\www\klink-report\resources\views/pages/rekap-bulanan-pdf.blade.php ENDPATH**/ ?>

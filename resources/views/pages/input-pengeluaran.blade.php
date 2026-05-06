@@ -27,6 +27,10 @@
         padding: 18px 20px;
     }
 
+    .hero-card.is-master {
+        align-items: center;
+    }
+
     .page-eyebrow {
         margin: 0;
         color: #2563eb;
@@ -43,14 +47,23 @@
         line-height: 1.1;
     }
 
-    .hero-stats {
-        display: grid;
-        min-width: 320px;
-        gap: 8px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .hero-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .hero-summary {
+        display: flex;
+        min-width: 220px;
+        flex: 0 0 auto;
     }
 
     .hero-stat {
+        width: 100%;
         border-radius: 18px;
         padding: 10px 12px;
         background: linear-gradient(180deg, #f8fbff, #eef4ff);
@@ -73,6 +86,60 @@
         font-size: 0.95rem;
         font-weight: 700;
         line-height: 1.1;
+    }
+
+    .hero-filter-form {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .hero-filter-field {
+        display: flex;
+        min-width: 150px;
+        flex: 0 1 170px;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .hero-filter-field.is-wide {
+        flex-basis: 190px;
+    }
+
+    .hero-filter-field label {
+        color: #64748b;
+        font-size: 0.63rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-filter-field input,
+    .hero-filter-field select {
+        height: 40px;
+        border: 1px solid #d7e1ef;
+        border-radius: 14px;
+        padding: 9px 12px;
+        background: #f8fafc;
+        color: #10233d;
+        font-size: 0.8rem;
+    }
+
+    .hero-filter-actions {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .hero-filter-button {
+        min-height: 40px;
+        border-radius: 14px;
+        padding: 10px 13px;
+        font-size: 0.74rem;
+        letter-spacing: 0.03em;
     }
 
     .table-card,
@@ -591,8 +658,8 @@
             align-items: start;
         }
 
-        .hero-stats {
-            min-width: 0;
+        .hero-tools {
+            justify-content: flex-start;
         }
 
         .form-grid {
@@ -633,6 +700,21 @@
             justify-content: stretch;
         }
 
+        .hero-filter-form {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .hero-filter-field,
+        .hero-filter-field.is-wide {
+            min-width: 0;
+            flex: 1 1 180px;
+        }
+
+        .hero-summary {
+            width: 100%;
+        }
+
         .tab-filter-form {
             width: 100%;
             min-width: 0;
@@ -645,7 +727,7 @@
             flex: 1 1 180px;
         }
 
-        .hero-stats,
+        .hero-summary,
         .form-grid,
         .modal-grid {
             grid-template-columns: 1fr;
@@ -683,28 +765,55 @@
     $defaultExpenseDate = old('tanggal', $selectedMonth === now()->format('Y-m')
         ? now()->format('Y-m-d')
         : $selectedMonthDate->copy()->startOfMonth()->format('Y-m-d'));
+    $canEditOperationalData = auth()->user()?->canEditOperationalData();
+    $isMasterPengeluaranView = auth()->user()?->isMaster();
 @endphp
 
 <div class="pengeluaran-shell">
-    <section class="hero-card">
+    <section class="hero-card {{ $isMasterPengeluaranView ? 'is-master' : '' }}">
         <div class="hero-copy">
             <p class="page-eyebrow">Operasional Klinik</p>
             <h1>Input Pengeluaran</h1>
         </div>
 
-        <div class="hero-stats">
-            <article class="hero-stat">
-                <span>Periode Aktif</span>
-                <strong>{{ $formattedMonth }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Data Pengeluaran</span>
-                <strong>{{ $expenses->count() }}</strong>
-            </article>
-            <article class="hero-stat">
-                <span>Total Bulan Ini</span>
-                <strong>Rp {{ number_format($totalPengeluaran, 0, ',', '.') }}</strong>
-            </article>
+        <div class="hero-tools">
+            <div class="hero-summary">
+                <article class="hero-stat">
+                    <span>Total Pengeluaran</span>
+                    <strong>Rp {{ number_format($totalPengeluaran, 0, ',', '.') }}</strong>
+                </article>
+            </div>
+
+            @if ($showClinicFilter)
+            <form method="GET" action="{{ route('input-pengeluaran') }}" class="hero-filter-form" id="expenseHeroFilterForm">
+                <input type="hidden" name="active_tab" id="expense-hero-active-tab" value="{{ $preferredTab ?: 'panel-input-pengeluaran' }}">
+                <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
+                <input type="hidden" name="kategori" value="{{ $selectedCategory }}">
+
+                    <div class="hero-filter-field is-wide">
+                        <label for="hero-pengeluaran-clinic-id">Klinik Aktif</label>
+                        <select id="hero-pengeluaran-clinic-id" name="clinic_id">
+                            <option value="all" @selected($selectedClinicFilter === 'all')>Semua Klinik</option>
+                            @foreach ($clinicOptions as $clinicOption)
+                                <option value="{{ $clinicOption->id }}" @selected((string) $clinicOption->id === $selectedClinicFilter)>
+                                    {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="hero-filter-actions">
+                        <button type="submit" class="btn btn-primary hero-filter-button filter-submit">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M4 6h16"></path>
+                                <path d="M7 12h10"></path>
+                                <path d="M10 18h4"></path>
+                            </svg>
+                            Filter Data
+                        </button>
+                    </div>
+            </form>
+            @endif
         </div>
     </section>
 
@@ -763,6 +872,7 @@
                     data-tab-filter="panel-data-pengeluaran"
                     hidden
                 >
+                    <input type="hidden" name="clinic_id" value="{{ $selectedClinicFilter }}">
                     <input type="hidden" name="active_tab" value="panel-data-pengeluaran">
 
                     <div class="tab-filter-field">
@@ -781,6 +891,19 @@
                             @endforeach
                         </select>
                     </div>
+
+                    @if ($showClinicFilter)
+                        <div class="tab-filter-field is-wide">
+                            <label for="pengeluaran-clinic-id">Klinik</label>
+                            <select id="pengeluaran-clinic-id" name="clinic_id">
+                                @foreach ($clinicOptions as $clinicOption)
+                                    <option value="{{ $clinicOption->id }}" @selected((int) $selectedClinicId === (int) $clinicOption->id)>
+                                        {{ $clinicOption->kode_klinik }} · {{ $clinicOption->nama_klinik }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
 
                     <div class="tab-filter-actions">
                         <button type="submit" class="btn btn-primary tab-filter-button filter-submit">
@@ -806,8 +929,16 @@
 
             <div class="form-shell">
                 <div class="form-card">
-                    <form method="POST" action="{{ route('input-pengeluaran.store') }}">
+                    @if ($showClinicFilter && $viewingAllClinics)
+                        <div class="empty-state">
+                            Pilih satu klinik pada filter header terlebih dahulu agar pengeluaran baru tersimpan ke klinik yang tepat.
+                        </div>
+                    @else
+                    <form method="POST" action="{{ route('input-pengeluaran.store') }}" id="createPengeluaranForm">
                         @csrf
+                        @if ($showClinicFilter)
+                            <input type="hidden" name="clinic_profile_id" value="{{ $selectedClinicId }}">
+                        @endif
 
                         <div class="form-grid">
                             <div class="form-group">
@@ -829,13 +960,20 @@
 
                             <div class="form-group">
                                 <label for="create-jumlah_rp">Jumlah Rp.</label>
-                                <input id="create-jumlah_rp" type="number" name="jumlah_rp" min="0" step="0.01" value="{{ old('jumlah_rp', 0) }}">
+                                <input id="create-jumlah_rp" type="text" inputmode="decimal" autocomplete="off" class="js-currency-input" name="jumlah_rp" value="{{ old('jumlah_rp', 0) }}">
                             </div>
 
                             <div class="form-group">
                                 <label>User Login</label>
                                 <input type="text" value="{{ $loggedInAdminName }}" readonly class="readonly-display">
                             </div>
+
+                            @if ($showClinicFilter)
+                                <div class="form-group span-4">
+                                    <label>Klinik Tujuan</label>
+                                    <input type="text" value="{{ $selectedClinicLabel }}" readonly class="readonly-display">
+                                </div>
+                            @endif
 
                             <div class="form-group span-4">
                                 <label for="create-deskripsi">Deskripsi</label>
@@ -854,6 +992,7 @@
                             </div>
                         </div>
                     </form>
+                    @endif
                 </div>
             </div>
         </div>
@@ -884,6 +1023,9 @@
                                 <th>Kategori</th>
                                 <th>Deskripsi</th>
                                 <th>Jumlah</th>
+                                @if ($viewingAllClinics)
+                                    <th>Klinik</th>
+                                @endif
                                 <th>Petugas</th>
                                 <th>Aksi</th>
                             </tr>
@@ -912,6 +1054,14 @@
                                     <td>
                                         <span class="amount-pill">Rp {{ number_format((float) $expense->jumlah_rp, 0, ',', '.') }}</span>
                                     </td>
+                                    @if ($viewingAllClinics)
+                                        <td>
+                                            <div class="row-title">{{ $expense->clinicProfile?->nama_pendek ?: $expense->clinicProfile?->nama_klinik ?: '-' }}</div>
+                                            <div class="row-subtitle">
+                                                {{ $expense->clinicProfile?->kode_klinik ?: '-' }}
+                                            </div>
+                                        </td>
+                                    @endif
                                     <td>
                                         <div class="row-title">{{ $expense->petugas_admin ?: '-' }}</div>
                                         <div class="row-subtitle">
@@ -920,18 +1070,20 @@
                                     </td>
                                     <td>
                                         <div class="action-stack">
-                                            <button
-                                                type="button"
-                                                class="action-btn edit js-open-expense-modal"
-                                                data-expense-id="{{ $expense->id }}"
-                                                title="Edit pengeluaran"
-                                                aria-label="Edit pengeluaran"
-                                            >
-                                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                    <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
-                                                    <path d="M12.5 7.5l4 4"></path>
-                                                </svg>
-                                            </button>
+                                            @if ($canEditOperationalData)
+                                                <button
+                                                    type="button"
+                                                    class="action-btn edit js-open-expense-modal"
+                                                    data-expense-id="{{ $expense->id }}"
+                                                    title="Edit pengeluaran"
+                                                    aria-label="Edit pengeluaran"
+                                                >
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
+                                                        <path d="M12.5 7.5l4 4"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
 
                                             <form
                                                 method="POST"
@@ -995,6 +1147,7 @@
             <input type="hidden" name="_method" id="expense-field-method" value="POST">
             <input type="hidden" name="_modal_mode" id="expense-field-meta-mode" value="edit">
             <input type="hidden" name="_pengeluaran_id" id="expense-field-meta-id">
+            <input type="hidden" name="clinic_profile_id" id="expense-field-clinic_profile_id" value="{{ $selectedClinicId }}">
 
             <div class="modal-body">
                 <div class="modal-grid">
@@ -1020,13 +1173,20 @@
 
                     <div class="modal-group">
                         <label for="expense-field-jumlah_rp">Jumlah Rp.</label>
-                        <input id="expense-field-jumlah_rp" type="number" name="jumlah_rp" min="0" step="0.01">
+                        <input id="expense-field-jumlah_rp" type="text" inputmode="decimal" autocomplete="off" class="js-currency-input" name="jumlah_rp">
                     </div>
 
                     <div class="modal-group">
                         <label>User Login</label>
                         <input type="text" value="{{ $loggedInAdminName }}" readonly class="readonly-display">
                     </div>
+
+                    @if ($showClinicFilter)
+                        <div class="modal-group span-2">
+                            <label>Klinik Tujuan</label>
+                            <input type="text" id="expense-field-clinic_label" value="{{ $selectedClinicLabel }}" readonly class="readonly-display">
+                        </div>
+                    @endif
 
                     <div class="modal-group span-2">
                         <label for="expense-field-keterangan">Keterangan</label>
@@ -1053,23 +1213,123 @@
 
     const modal = document.getElementById('pengeluaranModal');
     const form = document.getElementById('pengeluaranForm');
+    const createForm = document.getElementById('createPengeluaranForm');
     const methodField = document.getElementById('expense-field-method');
     const modalModeField = document.getElementById('expense-field-meta-mode');
     const modalExpenseField = document.getElementById('expense-field-meta-id');
     const modalTitle = document.getElementById('expenseModalTitle');
     const modalSubtitle = document.getElementById('expenseModalSubtitle');
+    const heroActiveTabField = document.getElementById('expense-hero-active-tab');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
     const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
     const tabFilterForms = Array.from(document.querySelectorAll('[data-tab-filter]'));
     const tabStorageKey = 'input-pengeluaran.active-tab';
+    const legacyClinicFilterField = document.getElementById('pengeluaran-clinic-id')?.closest('.tab-filter-field');
+
+    if (legacyClinicFilterField) {
+        legacyClinicFilterField.remove();
+    }
 
     const trackedFields = [
+        'clinic_profile_id',
+        'clinic_label',
         'master_kategori_pengeluaran_id',
         'tanggal',
         'deskripsi',
         'jumlah_rp',
         'keterangan',
     ];
+
+    function splitCurrencyParts(value) {
+        const cleaned = String(value ?? '').replace(/[^\d.,]/g, '').trim();
+
+        if (!cleaned) {
+            return { intPart: '', fracPart: '' };
+        }
+
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        const candidates = [lastComma, lastDot].filter((index) => index >= 0).sort((a, b) => b - a);
+
+        let separatorIndex = -1;
+
+        for (const index of candidates) {
+            const intCandidate = cleaned.slice(0, index).replace(/[^\d]/g, '');
+            const fracCandidate = cleaned.slice(index + 1).replace(/[^\d]/g, '');
+
+            if (intCandidate.length > 0 && fracCandidate.length > 0 && fracCandidate.length <= 2) {
+                separatorIndex = index;
+                break;
+            }
+        }
+
+        if (separatorIndex >= 0) {
+            return {
+                intPart: cleaned.slice(0, separatorIndex).replace(/[^\d]/g, ''),
+                fracPart: cleaned.slice(separatorIndex + 1).replace(/[^\d]/g, '').slice(0, 2),
+            };
+        }
+
+        return {
+            intPart: cleaned.replace(/[^\d]/g, ''),
+            fracPart: '',
+        };
+    }
+
+    function formatCurrencyDisplay(value) {
+        const { intPart, fracPart } = splitCurrencyParts(value);
+
+        if (!intPart && !fracPart) {
+            return '';
+        }
+
+        const normalizedInt = (intPart || '0').replace(/^0+(?=\d)/, '') || '0';
+        const formattedInt = normalizedInt.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+        return fracPart ? `${formattedInt},${fracPart}` : formattedInt;
+    }
+
+    function currencyValueToSubmitString(value) {
+        const { intPart, fracPart } = splitCurrencyParts(value);
+
+        if (!intPart && !fracPart) {
+            return '';
+        }
+
+        return `${intPart || '0'}${fracPart ? `.${fracPart}` : ''}`;
+    }
+
+    function setCurrencyFieldDisplay(field, value) {
+        if (!field) {
+            return;
+        }
+
+        field.value = formatCurrencyDisplay(value);
+    }
+
+    function prepareCurrencyInputsForSubmit(scope) {
+        if (!scope) {
+            return;
+        }
+
+        scope.querySelectorAll('.js-currency-input').forEach((field) => {
+            field.dataset.displayValue = field.value;
+            field.value = currencyValueToSubmitString(field.value);
+        });
+    }
+
+    function restoreCurrencyInputs(scope) {
+        if (!scope) {
+            return;
+        }
+
+        scope.querySelectorAll('.js-currency-input').forEach((field) => {
+            if (Object.prototype.hasOwnProperty.call(field.dataset, 'displayValue')) {
+                field.value = field.dataset.displayValue;
+                delete field.dataset.displayValue;
+            }
+        });
+    }
 
     function activateTab(targetId) {
         tabButtons.forEach((button) => {
@@ -1087,6 +1347,10 @@
             filterForm.hidden = filterForm.dataset.tabFilter !== targetId;
         });
 
+        if (heroActiveTabField) {
+            heroActiveTabField.value = targetId;
+        }
+
         window.localStorage.setItem(tabStorageKey, targetId);
     }
 
@@ -1094,6 +1358,11 @@
         const field = document.getElementById(`expense-field-${name}`);
 
         if (!field) {
+            return;
+        }
+
+        if (field.classList.contains('js-currency-input')) {
+            setCurrencyFieldDisplay(field, value);
             return;
         }
 
@@ -1156,5 +1425,31 @@
     if (hasValidationErrors && oldFormState._modal_mode === 'edit' && oldFormState._pengeluaran_id) {
         openModal(oldFormState._pengeluaran_id, oldFormState);
     }
+
+    document.querySelectorAll('.js-currency-input').forEach((input) => {
+        input.addEventListener('input', () => {
+            input.value = formatCurrencyDisplay(input.value);
+        });
+
+        input.addEventListener('blur', () => {
+            input.value = formatCurrencyDisplay(input.value);
+        });
+
+        if (input.value) {
+            input.value = formatCurrencyDisplay(input.value);
+        }
+    });
+
+    if (createForm) {
+        createForm.addEventListener('submit', () => {
+            prepareCurrencyInputsForSubmit(createForm);
+            window.setTimeout(() => restoreCurrencyInputs(createForm), 0);
+        });
+    }
+
+    form.addEventListener('submit', () => {
+        prepareCurrencyInputsForSubmit(form);
+        window.setTimeout(() => restoreCurrencyInputs(form), 0);
+    });
 </script>
 @endsection
