@@ -453,7 +453,7 @@
     }
 
     .tab-filter-form.is-summary {
-        width: min(100%, 680px);
+        width: min(100%, 760px);
     }
 
     .tab-filter-field {
@@ -470,6 +470,11 @@
 
     .tab-filter-field.is-date {
         flex-basis: 170px;
+    }
+
+    .tab-filter-field.is-date-compact {
+        min-width: 122px;
+        flex-basis: 132px;
     }
 
     .tab-filter-field.is-status {
@@ -1195,8 +1200,6 @@
                     @if ($preferredTab !== 'panel-data-transaksi') hidden @endif
                 >
                     <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
-                    <input type="hidden" name="tanggal_awal" value="{{ $selectedStartDate }}">
-                    <input type="hidden" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
                     <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                     <input type="hidden" name="active_tab" value="panel-data-transaksi">
@@ -1206,9 +1209,14 @@
                         <strong>Rp {{ number_format($totalSavedTransactionAmount, 0, ',', '.') }}</strong>
                     </div>
 
-                    <div class="tab-filter-field">
-                        <label for="data_bulan">Bulan</label>
-                        <input id="data_bulan" type="month" name="data_bulan" value="{{ $selectedDataMonth }}">
+                    <div class="tab-filter-field is-date-compact">
+                        <label for="data_tanggal_awal">Tanggal Awal</label>
+                        <input id="data_tanggal_awal" type="date" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                    </div>
+
+                    <div class="tab-filter-field is-date-compact">
+                        <label for="data_tanggal_akhir">Tanggal Akhir</label>
+                        <input id="data_tanggal_akhir" type="date" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     </div>
 
                     <div class="tab-filter-field is-wide">
@@ -1455,7 +1463,7 @@
         <div class="tab-panel" id="panel-data-transaksi" role="tabpanel" aria-labelledby="tab-data-transaksi" hidden>
             <div class="table-head">
                 <h2>
-                    Data Transaksi {{ $formattedDataMonth }}
+                    Data Transaksi {{ $formattedSelectedRange }}
                     @if (filled($selectedPenjamin))
                         · {{ $selectedPenjamin }}
                     @endif
@@ -1464,7 +1472,7 @@
 
             @if ($savedTransactionList->isEmpty())
                 <div class="empty-state">
-                    Belum ada data lokal untuk periode {{ $formattedDataMonth }}.
+                    Belum ada data lokal untuk rentang {{ $formattedSelectedRange }}.
                 </div>
             @else
                 <div class="table-wrap">

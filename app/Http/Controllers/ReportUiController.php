@@ -311,8 +311,8 @@ class ReportUiController extends Controller
 
         $savedTransactionQuery = TransaksiPasien::query()
             ->with(['masterLayanan', 'clinicProfile', 'komponenTransaksi', 'administrasiTransaksi'])
-            ->whereYear('tanggal', $dataMonth->year)
-            ->whereMonth('tanggal', $dataMonth->month);
+            ->whereDate('tanggal', '>=', $selectedStartDate)
+            ->whereDate('tanggal', '<=', $selectedEndDate);
         $this->scopeQueryToClinic($savedTransactionQuery, $selectedClinicId);
 
         if (filled($selectedPenjamin)) {
@@ -331,8 +331,8 @@ class ReportUiController extends Controller
             ->keyBy(fn (TransaksiPasien $item) => $item->clinic_profile_id . '::' . $item->simrs_no_rawat);
 
         $penjaminOptionsQuery = TransaksiPasien::query()
-            ->whereYear('tanggal', $dataMonth->year)
-            ->whereMonth('tanggal', $dataMonth->month)
+            ->whereDate('tanggal', '>=', $selectedStartDate)
+            ->whereDate('tanggal', '<=', $selectedEndDate)
             ->whereNotNull('penjamin')
             ->where('penjamin', '!=', '')
             ->orderBy('penjamin')
