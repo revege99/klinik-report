@@ -1545,35 +1545,100 @@ class ReportUiController extends Controller
     public function rekapPasienPusat(Request $request): View
     {
         $selectedMonth = $this->normalizeSelectedMonth($request->string('bulan')->toString());
+        $selectedStatusFilter = $this->normalizeRekapPasienStatusFilter($request->string('status_lanjut')->toString());
         $clinicContext = $this->clinicContext($request, true);
+        $isMasterView = $request->user()?->isMaster() ?? false;
 
-        $rekapPasienQuery = RekapPasien::query()
-            ->with(['masterLayanan', 'clinicProfile'])
-            ->forBulan($selectedMonth->month, $selectedMonth->year)
-            ->orderByDesc('tanggal')
-            ->orderBy('nama_pasien');
-        $this->scopeQueryToClinic($rekapPasienQuery, $clinicContext['selectedClinicId']);
-        $rows = $rekapPasienQuery->get();
+        if ($isMasterView) {
+            $clinicContext['selectedClinicId'] = null;
+            $clinicContext['selectedClinicLabel'] = 'Semua Klinik';
+            $clinicContext['viewingAllClinics'] = true;
+            $clinicContext['showClinicFilter'] = false;
+        }
 
-        $lastRekapUpdate = ! $clinicContext['viewingAllClinics'] && $clinicContext['selectedClinicId']
-            ? RekapPasienUpdate::query()
-                ->with('user')
-                ->where('clinic_profile_id', $clinicContext['selectedClinicId'])
-                ->first()
-            : null;
+        $warnings = collect();
+        $rows = collect();
+        $successfulClinicCount = 0;
+        $configuredClinicIds = ClinicDatabaseConnection::query()
+            ->active()
+            ->where('connection_role', 'simrs')
+            ->pluck('clinic_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        if ($clinicContext['viewingAllClinics']) {
+            foreach ($clinicContext['clinicOptions'] as $clinic) {
+                $clinicLabel = $clinic->nama_pendek ?: $clinic->nama_klinik;
+
+                if (! $configuredClinicIds->has((int) $clinic->id)) {
+                    $warnings->push('Koneksi SIMRS untuk ' . $clinicLabel . ' belum diatur, jadi data pasiennya dilewati.');
+
+                    continue;
+                }
+
+                try {
+                    $clinicRows = $this->simrsRekapPasienRows($selectedMonth, (int) $clinic->id)
+                        ->map(fn (array $row) => array_merge($row, [
+                            'clinic_id' => (int) $clinic->id,
+                            'clinic_name' => $clinicLabel,
+                        ]));
+                    $successfulClinicCount++;
+                    $rows = $rows->concat($clinicRows);
+                } catch (\Throwable $exception) {
+                    $warnings->push(
+                        'Koneksi pasien pusat untuk ' . $clinicLabel . ' gagal dibaca: '
+                        . $this->humanizeClinicConnectionError($exception)
+                    );
+                }
+            }
+        } elseif ($clinicContext['selectedClinicId']) {
+            try {
+                $successfulClinicCount = 1;
+                $rows = $this->simrsRekapPasienRows($selectedMonth, $clinicContext['selectedClinicId']);
+            } catch (\Throwable $exception) {
+                $warnings->push(
+                    'Data pasien untuk '
+                    . $clinicContext['selectedClinicLabel']
+                    . ' belum bisa dibaca: '
+                    . $this->humanizeClinicConnectionError($exception)
+                );
+            }
+        }
+
+        $rows = $rows
+            ->when($selectedStatusFilter !== 'all', function (Collection $collection) use ($selectedStatusFilter) {
+                return $collection->where('status_lanjut_key', $selectedStatusFilter)->values();
+            })
+            ->sortBy(function (array $row) {
+                $timestamp = filled($row['tanggal'] ?? null) ? strtotime((string) $row['tanggal']) : 0;
+
+                return sprintf(
+                    '%010d_%s',
+                    max(0, 9999999999 - (int) $timestamp),
+                    trim((string) ($row['no_rawat'] ?? ''))
+                );
+            })
+            ->values();
 
         return view('pages.rekap-pasien-pusat', [
             'selectedMonth' => $selectedMonth->format('Y-m'),
+            'selectedStatusFilter' => $selectedStatusFilter,
+            'selectedStatusLabel' => match ($selectedStatusFilter) {
+                'ralan' => 'Rawat Jalan',
+                'ranap' => 'Rawat Inap',
+                default => 'Semua Rawat',
+            },
             'periodLabel' => $this->periodLabel($selectedMonth),
             'rows' => $rows,
             'totalRows' => $rows->count(),
-            'uniquePatients' => $rows->pluck('no_rm')->filter()->unique()->count(),
-            'activeLayananCount' => $rows
-                ->map(fn (RekapPasien $item) => $item->masterLayanan?->kode_layanan ?: $item->layanan_medis)
-                ->filter()
-                ->unique()
-                ->count(),
-            'lastRekapUpdate' => $lastRekapUpdate,
+            'totalRawatJalan' => $rows->where('status_lanjut_key', 'ralan')->count(),
+            'totalRawatInap' => $rows->where('status_lanjut_key', 'ranap')->count(),
+            'totalLakiLaki' => $rows->where('jk_key', 'l')->count(),
+            'totalPerempuan' => $rows->where('jk_key', 'p')->count(),
+            'totalBpjs' => $rows->filter(fn (array $row) => ($row['jenis_bayar_key'] ?? '') === 'bpjs')->count(),
+            'totalUmum' => $rows->filter(fn (array $row) => ($row['jenis_bayar_key'] ?? '') === 'umum')->count(),
+            'successfulClinicCount' => $successfulClinicCount,
+            'warnings' => $warnings,
             'clinicOptions' => $clinicContext['clinicOptions'],
             'showClinicFilter' => $clinicContext['showClinicFilter'],
             'selectedClinicFilter' => $clinicContext['viewingAllClinics']
@@ -1581,6 +1646,142 @@ class ReportUiController extends Controller
                 : (string) ($clinicContext['selectedClinicId'] ?: ''),
             'selectedClinicLabel' => $clinicContext['selectedClinicLabel'],
             'viewingAllClinics' => $clinicContext['viewingAllClinics'],
+            'isMasterView' => $isMasterView,
+        ]);
+    }
+
+    public function rekapPenyakitPusat(Request $request): View
+    {
+        $selectedMonth = $this->normalizeSelectedMonth($request->string('bulan')->toString());
+        $selectedAgeFilter = $this->normalizeRekapPenyakitAgeFilter($request->string('kelompok_usia')->toString());
+        $clinicContext = $this->clinicContext($request, true);
+        $isMasterView = $request->user()?->isMaster() ?? false;
+
+        if ($isMasterView) {
+            $clinicContext['selectedClinicId'] = null;
+            $clinicContext['selectedClinicLabel'] = 'Semua Klinik';
+            $clinicContext['viewingAllClinics'] = true;
+            $clinicContext['showClinicFilter'] = false;
+        }
+
+        $warnings = collect();
+        $rows = collect();
+        $successfulClinicCount = 0;
+        $configuredClinicIds = ClinicDatabaseConnection::query()
+            ->active()
+            ->where('connection_role', 'simrs')
+            ->pluck('clinic_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        if ($clinicContext['viewingAllClinics']) {
+            $aggregatedRows = collect();
+
+            foreach ($clinicContext['clinicOptions'] as $clinic) {
+                $clinicLabel = $clinic->nama_pendek ?: $clinic->nama_klinik;
+
+                if (! $configuredClinicIds->has((int) $clinic->id)) {
+                    $warnings->push('Koneksi SIMRS untuk ' . $clinicLabel . ' belum diatur, jadi data penyakitnya dilewati.');
+
+                    continue;
+                }
+
+                try {
+                    $clinicRows = $this->simrsRekapPenyakitRows($selectedMonth, (int) $clinic->id, $selectedAgeFilter);
+                    $successfulClinicCount++;
+
+                    foreach ($clinicRows as $row) {
+                        $key = filled($row['icd'])
+                            ? strtoupper(trim((string) $row['icd']))
+                            : 'penyakit-' . md5((string) $row['nama_penyakit']);
+                        $existing = $aggregatedRows->get($key, [
+                            'icd' => $row['icd'],
+                            'nama_penyakit' => $row['nama_penyakit'],
+                            'total_kasus' => 0,
+                            'total_laki_laki' => 0,
+                            'total_perempuan' => 0,
+                            'total_anak' => 0,
+                            'total_dewasa' => 0,
+                            'clinic_names' => [],
+                        ]);
+
+                        $existing['total_kasus'] += (int) ($row['total_kasus'] ?? 0);
+                        $existing['total_laki_laki'] += (int) ($row['total_laki_laki'] ?? 0);
+                        $existing['total_perempuan'] += (int) ($row['total_perempuan'] ?? 0);
+                        $existing['total_anak'] += (int) ($row['total_anak'] ?? 0);
+                        $existing['total_dewasa'] += (int) ($row['total_dewasa'] ?? 0);
+                        $existing['clinic_names'][] = $clinicLabel;
+
+                        $aggregatedRows->put($key, $existing);
+                    }
+                } catch (\Throwable $exception) {
+                    $warnings->push(
+                        'Koneksi penyakit pusat untuk ' . $clinicLabel . ' gagal dibaca: '
+                        . $this->humanizeClinicConnectionError($exception)
+                    );
+                }
+            }
+
+            $rows = $aggregatedRows
+                ->map(function (array $row) {
+                    $row['clinic_names'] = array_values(array_unique($row['clinic_names']));
+                    $row['clinic_count'] = count($row['clinic_names']);
+
+                    return $row;
+                })
+                ->sort(function (array $left, array $right) {
+                    $byTotalKasus = ($right['total_kasus'] ?? 0) <=> ($left['total_kasus'] ?? 0);
+
+                    if ($byTotalKasus !== 0) {
+                        return $byTotalKasus;
+                    }
+
+                    return strcasecmp(
+                        (string) ($left['nama_penyakit'] ?? ''),
+                        (string) ($right['nama_penyakit'] ?? '')
+                    );
+                })
+                ->values();
+        } elseif ($clinicContext['selectedClinicId']) {
+            try {
+                $successfulClinicCount = 1;
+                $rows = $this->simrsRekapPenyakitRows(
+                    $selectedMonth,
+                    $clinicContext['selectedClinicId'],
+                    $selectedAgeFilter
+                );
+            } catch (\Throwable $exception) {
+                $warnings->push(
+                    'Data penyakit untuk '
+                    . $clinicContext['selectedClinicLabel']
+                    . ' belum bisa dibaca: '
+                    . $this->humanizeClinicConnectionError($exception)
+                );
+            }
+        }
+
+        return view('pages.rekap-penyakit-pusat', [
+            'selectedMonth' => $selectedMonth->format('Y-m'),
+            'selectedAgeFilter' => $selectedAgeFilter,
+            'selectedAgeLabel' => $this->humanizeRekapPenyakitAgeFilter($selectedAgeFilter),
+            'periodLabel' => $this->periodLabel($selectedMonth),
+            'rows' => $rows,
+            'totalDiseases' => $rows->count(),
+            'totalCases' => (int) $rows->sum('total_kasus'),
+            'totalMale' => (int) $rows->sum('total_laki_laki'),
+            'totalFemale' => (int) $rows->sum('total_perempuan'),
+            'totalChildren' => (int) $rows->sum('total_anak'),
+            'totalAdults' => (int) $rows->sum('total_dewasa'),
+            'successfulClinicCount' => $successfulClinicCount,
+            'warnings' => $warnings,
+            'clinicOptions' => $clinicContext['clinicOptions'],
+            'showClinicFilter' => $clinicContext['showClinicFilter'],
+            'selectedClinicFilter' => $clinicContext['viewingAllClinics']
+                ? 'all'
+                : (string) ($clinicContext['selectedClinicId'] ?: ''),
+            'selectedClinicLabel' => $clinicContext['selectedClinicLabel'],
+            'viewingAllClinics' => $clinicContext['viewingAllClinics'],
+            'isMasterView' => $isMasterView,
         ]);
     }
 
@@ -1692,13 +1893,7 @@ class ReportUiController extends Controller
         $this->syncTransaksiAdministrasi($transaksiPasien, $administrasiSync);
 
         return redirect()
-            ->route('transaksi-pasien', [
-                'tanggal' => $data['tanggal'],
-                'data_bulan' => Carbon::parse($data['tanggal'])->format('Y-m'),
-                'data_penjamin' => $data['penjamin'] ?: null,
-                'clinic_id' => $redirectClinicId,
-                'active_tab' => 'panel-data-transaksi',
-            ])
+            ->route('transaksi-pasien', $this->transaksiPasienRedirectParameters($request, $data, $redirectClinicId))
             ->with('success', 'Transaksi pasien berhasil disimpan.');
     }
 
@@ -1717,13 +1912,7 @@ class ReportUiController extends Controller
         $this->syncTransaksiAdministrasi($transaksiPasien, $administrasiSync);
 
         return redirect()
-            ->route('transaksi-pasien', [
-                'tanggal' => $data['tanggal'],
-                'data_bulan' => Carbon::parse($data['tanggal'])->format('Y-m'),
-                'data_penjamin' => $data['penjamin'] ?: null,
-                'clinic_id' => $redirectClinicId,
-                'active_tab' => 'panel-data-transaksi',
-            ])
+            ->route('transaksi-pasien', $this->transaksiPasienRedirectParameters($request, $data, $redirectClinicId))
             ->with('success', 'Transaksi pasien berhasil diperbarui.');
     }
 
@@ -1731,19 +1920,15 @@ class ReportUiController extends Controller
     {
         $this->ensureOperationalRecordAccess($request->user(), $transaksiPasien->clinic_profile_id);
         $tanggal = optional($transaksiPasien->tanggal)->toDateString() ?: now()->toDateString();
-        $bulan = optional($transaksiPasien->tanggal)->format('Y-m') ?: now()->format('Y-m');
-        $penjamin = $transaksiPasien->penjamin;
         $clinicId = $this->resolveTransaksiRedirectClinicFilter($request, $transaksiPasien->clinic_profile_id);
         $transaksiPasien->delete();
 
         return redirect()
-            ->route('transaksi-pasien', [
-                'tanggal' => $tanggal,
-                'data_bulan' => $bulan,
-                'data_penjamin' => $penjamin ?: null,
-                'clinic_id' => $clinicId,
-                'active_tab' => 'panel-data-transaksi',
-            ])
+            ->route('transaksi-pasien', $this->transaksiPasienRedirectParameters(
+                $request,
+                ['tanggal' => $tanggal],
+                $clinicId
+            ))
             ->with('success', 'Transaksi pasien berhasil dihapus.');
     }
 
@@ -1826,6 +2011,141 @@ class ReportUiController extends Controller
                 ];
             })
             ->sortByDesc('total_rupiah')
+            ->values();
+    }
+
+    private function simrsRekapPasienRows(Carbon $selectedMonth, ?int $clinicProfileId = null): Collection
+    {
+        $simrs = $this->resolveSimrsConnection($clinicProfileId);
+        $startDate = $selectedMonth->copy()->startOfMonth()->toDateString();
+        $endDate = $selectedMonth->copy()->endOfMonth()->toDateString();
+
+        return $simrs->table('reg_periksa as rp')
+            ->leftJoin('pasien as ps', 'ps.no_rkm_medis', '=', 'rp.no_rkm_medis')
+            ->leftJoin('penjab as pj', 'pj.kd_pj', '=', 'rp.kd_pj')
+            ->whereBetween('rp.tgl_registrasi', [$startDate, $endDate])
+            ->selectRaw('
+                rp.tgl_registrasi,
+                rp.no_rawat,
+                rp.no_rkm_medis,
+                rp.status_lanjut,
+                rp.kd_pj,
+                COALESCE(ps.jk, "") as jk,
+                COALESCE(ps.nm_pasien, "") as nm_pasien,
+                COALESCE(pj.png_jawab, "") as penjamin
+            ')
+            ->orderByDesc('rp.tgl_registrasi')
+            ->orderBy('rp.no_rawat')
+            ->get()
+            ->map(function ($row) {
+                $tanggal = filled($row->tgl_registrasi)
+                    ? Carbon::parse($row->tgl_registrasi)->toDateString()
+                    : null;
+                $jenisBayar = $this->classifySimrsJenisBayar(
+                    $row->penjamin ?: null,
+                    $row->kd_pj ?: null
+                );
+
+                return [
+                    'tanggal' => $tanggal,
+                    'no_rawat' => filled($row->no_rawat) ? trim((string) $row->no_rawat) : '-',
+                    'no_rm' => filled($row->no_rkm_medis) ? trim((string) $row->no_rkm_medis) : '-',
+                    'nama_pasien' => filled($row->nm_pasien) ? trim((string) $row->nm_pasien) : 'Tanpa Nama',
+                    'jk' => $this->humanizeSimrsJenisKelamin($row->jk ?: null),
+                    'jk_key' => $this->normalizeSimrsJenisKelaminKey($row->jk ?: null),
+                    'status_lanjut' => $this->humanizeSimrsStatusLanjut($row->status_lanjut ?: null),
+                    'status_lanjut_key' => $this->normalizeSimrsStatusLanjutKey($row->status_lanjut ?: null),
+                    'penjamin' => $jenisBayar['label'],
+                    'jenis_bayar_key' => $jenisBayar['key'],
+                ];
+            })
+            ->values();
+    }
+
+    private function simrsRekapPenyakitRows(
+        Carbon $selectedMonth,
+        ?int $clinicProfileId = null,
+        string $selectedAgeFilter = 'all'
+    ): Collection {
+        $simrs = $this->resolveSimrsConnection($clinicProfileId);
+        $startDate = $selectedMonth->copy()->startOfMonth()->toDateString();
+        $endDate = $selectedMonth->copy()->endOfMonth()->toDateString();
+
+        return $simrs->table('diagnosa_pasien as dp')
+            ->join('reg_periksa as rp', 'rp.no_rawat', '=', 'dp.no_rawat')
+            ->leftJoin('pasien as ps', 'ps.no_rkm_medis', '=', 'rp.no_rkm_medis')
+            ->leftJoin('penyakit as py', 'py.kd_penyakit', '=', 'dp.kd_penyakit')
+            ->whereBetween('rp.tgl_registrasi', [$startDate, $endDate])
+            ->selectRaw('
+                dp.no_rawat,
+                dp.kd_penyakit,
+                COALESCE(py.nm_penyakit, "") as nm_penyakit,
+                COALESCE(ps.jk, "") as jk,
+                rp.umurdaftar,
+                COALESCE(rp.sttsumur, "") as sttsumur
+            ')
+            ->distinct()
+            ->get()
+            ->map(function ($row) {
+                $ageGroupKey = $this->determineRekapPenyakitAgeGroup(
+                    $row->umurdaftar ?? null,
+                    $row->sttsumur ?: null
+                );
+
+                return [
+                    'icd' => filled($row->kd_penyakit) ? trim((string) $row->kd_penyakit) : '-',
+                    'nama_penyakit' => filled($row->nm_penyakit) ? trim((string) $row->nm_penyakit) : 'Tanpa Nama Penyakit',
+                    'jk' => strtoupper(trim((string) ($row->jk ?: ''))),
+                    'age_group_key' => $ageGroupKey,
+                ];
+            })
+            ->when($selectedAgeFilter !== 'all', function (Collection $collection) use ($selectedAgeFilter) {
+                return $collection->where('age_group_key', $selectedAgeFilter)->values();
+            })
+            ->reduce(function (Collection $carry, array $row) {
+                $key = filled($row['icd']) && $row['icd'] !== '-'
+                    ? strtoupper(trim((string) $row['icd']))
+                    : 'penyakit-' . md5((string) $row['nama_penyakit']);
+                $existing = $carry->get($key, [
+                    'icd' => $row['icd'],
+                    'nama_penyakit' => $row['nama_penyakit'],
+                    'total_kasus' => 0,
+                    'total_laki_laki' => 0,
+                    'total_perempuan' => 0,
+                    'total_anak' => 0,
+                    'total_dewasa' => 0,
+                ]);
+
+                $existing['total_kasus']++;
+
+                if (($row['jk'] ?? '') === 'L') {
+                    $existing['total_laki_laki']++;
+                } elseif (($row['jk'] ?? '') === 'P') {
+                    $existing['total_perempuan']++;
+                }
+
+                if (($row['age_group_key'] ?? '') === 'anak') {
+                    $existing['total_anak']++;
+                } else {
+                    $existing['total_dewasa']++;
+                }
+
+                $carry->put($key, $existing);
+
+                return $carry;
+            }, collect())
+            ->sort(function (array $left, array $right) {
+                $byTotalKasus = ($right['total_kasus'] ?? 0) <=> ($left['total_kasus'] ?? 0);
+
+                if ($byTotalKasus !== 0) {
+                    return $byTotalKasus;
+                }
+
+                return strcasecmp(
+                    (string) ($left['nama_penyakit'] ?? ''),
+                    (string) ($right['nama_penyakit'] ?? '')
+                );
+            })
             ->values();
     }
 
@@ -2135,6 +2455,35 @@ class ReportUiController extends Controller
         }
 
         return $fallbackClinicId;
+    }
+
+    private function transaksiPasienRedirectParameters(
+        Request $request,
+        array $data,
+        string|int|null $redirectClinicId
+    ): array {
+        $selectedDate = $this->normalizeSelectedDate(
+            $request->input('context_tanggal', $data['tanggal'] ?? now()->toDateString())
+        );
+        $selectedDataMonth = $this->normalizeSelectedMonth(
+            $request->input('context_data_bulan', Carbon::parse($selectedDate)->format('Y-m'))
+        )->format('Y-m');
+        $selectedPenjamin = trim((string) $request->input('context_data_penjamin', ''));
+        $selectedLocalStatus = $this->normalizeLocalStatusFilter($request->input('context_local_status'));
+        $activeTab = trim((string) $request->input('active_tab_context', 'panel-transaksi-pasien'));
+
+        if (! in_array($activeTab, ['panel-transaksi-pasien', 'panel-data-transaksi', 'panel-rekap-pasien'], true)) {
+            $activeTab = 'panel-transaksi-pasien';
+        }
+
+        return [
+            'tanggal' => $selectedDate,
+            'data_bulan' => $selectedDataMonth,
+            'data_penjamin' => $selectedPenjamin !== '' ? $selectedPenjamin : null,
+            'local_status' => $selectedLocalStatus !== '' ? $selectedLocalStatus : null,
+            'clinic_id' => $redirectClinicId,
+            'active_tab' => $activeTab,
+        ];
     }
 
     private function validatedTransaksi(Request $request, ?int $ignoreId = null): array
@@ -3131,6 +3480,33 @@ class ReportUiController extends Controller
             : '';
     }
 
+    private function normalizeRekapPasienStatusFilter(?string $value): string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['all', 'ralan', 'ranap'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeRekapPenyakitAgeFilter(?string $value): string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['all', 'anak', 'dewasa'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function humanizeRekapPenyakitAgeFilter(string $value): string
+    {
+        return match ($value) {
+            'anak' => 'Anak-anak',
+            'dewasa' => 'Dewasa',
+            default => 'Semua Usia',
+        };
+    }
+
     private function normalizeRekapPenjaminMode(?string $value): string
     {
         $normalized = strtolower(trim((string) $value));
@@ -4059,6 +4435,93 @@ class ReportUiController extends Controller
         }
     }
 
+    private function normalizeSimrsStatusLanjutKey(?string $value): string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return match (true) {
+            str_contains($normalized, 'ranap') => 'ranap',
+            str_contains($normalized, 'ralan') => 'ralan',
+            default => 'lainnya',
+        };
+    }
+
+    private function humanizeSimrsStatusLanjut(?string $value): string
+    {
+        return match ($this->normalizeSimrsStatusLanjutKey($value)) {
+            'ranap' => 'Rawat Inap',
+            'ralan' => 'Rawat Jalan',
+            default => filled($value) ? trim((string) $value) : 'Belum Diisi',
+        };
+    }
+
+    private function normalizeSimrsJenisKelaminKey(?string $value): string
+    {
+        $normalized = strtoupper(trim((string) $value));
+
+        return match ($normalized) {
+            'L' => 'l',
+            'P' => 'p',
+            default => 'lainnya',
+        };
+    }
+
+    private function humanizeSimrsJenisKelamin(?string $value): string
+    {
+        return match ($this->normalizeSimrsJenisKelaminKey($value)) {
+            'l' => 'Laki-laki',
+            'p' => 'Perempuan',
+            default => filled($value) ? trim((string) $value) : '-',
+        };
+    }
+
+    private function determineRekapPenyakitAgeGroup(mixed $umurdaftar, ?string $sttsumur = null): string
+    {
+        $umur = is_numeric($umurdaftar) ? (float) $umurdaftar : null;
+        $unit = strtolower(trim((string) $sttsumur));
+
+        if ($umur === null) {
+            return 'dewasa';
+        }
+
+        if (in_array($unit, ['th', 'tahun', 'thn', 'taun', 'yr', 'yrs', 'year', 'years'], true)) {
+            return $umur < 5 ? 'anak' : 'dewasa';
+        }
+
+        if (in_array($unit, ['bln', 'bulan', 'bul', 'mo', 'mos', 'month', 'months'], true)) {
+            return 'anak';
+        }
+
+        if (in_array($unit, ['hr', 'hari', 'day', 'days'], true)) {
+            return 'anak';
+        }
+
+        if (in_array($unit, ['mg', 'minggu', 'week', 'weeks'], true)) {
+            return 'anak';
+        }
+
+        return $umur < 5 ? 'anak' : 'dewasa';
+    }
+
+    private function classifySimrsJenisBayar(?string $penjamin, ?string $kodePenjamin = null): array
+    {
+        $candidate = strtolower(trim((string) ($penjamin ?: $kodePenjamin)));
+        $isBpjs = $candidate !== ''
+            && (
+                str_contains($candidate, 'bpjs')
+                || str_contains($candidate, 'jkn')
+                || str_contains($candidate, 'kis')
+                || str_contains($candidate, 'pbi')
+            );
+
+        return [
+            'key' => $isBpjs ? 'bpjs' : 'umum',
+            'label' => filled($penjamin)
+                ? trim((string) $penjamin)
+                : ($isBpjs ? 'BPJS' : 'Umum'),
+        ];
+    }
+
     private function monthlyReportViewData(Request $request): array
     {
         $selectedMonth = $this->normalizeSelectedMonth($request->string('bulan')->toString());
@@ -4109,7 +4572,14 @@ class ReportUiController extends Controller
         $totalKreditPengeluaran = (float) $pengeluaranRows->sum('kredit');
         $totalKredit = $totalKreditKomponen + $totalKreditPengeluaran;
         $hasBpjsClaimRows = (float) $bpjsClaimSummary['total_klaim'] > 0;
-        $bpjsClaimMergedIntoLayanan = $hasBpjsClaimRows && (bool) $bpjsClaimTargetLayanan;
+        $bpjsClaimMergedIntoLayanan = $hasBpjsClaimRows
+            && $layananRows->contains(fn (array $row): bool => (bool) ($row['is_claim_target'] ?? false));
+
+        if ($hasBpjsClaimRows && ! $bpjsClaimMergedIntoLayanan) {
+            $totalDebitLayanan += (float) ($bpjsClaimSummary['debet'] ?? 0);
+            $totalKreditLayanan += (float) ($bpjsClaimSummary['kredit'] ?? 0);
+        }
+
         $saldoAkhir = $totalDebitKomponen - $totalKredit;
         $isBalanced = abs($totalDebitLayanan - $totalDebitKomponen) < 0.01
             && abs($totalKreditLayanan - $totalKreditKomponen) < 0.01;

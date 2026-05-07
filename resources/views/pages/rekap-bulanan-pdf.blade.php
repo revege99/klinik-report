@@ -14,6 +14,7 @@
     $bpjsClaimDetailLabel = $bpjsClaimCount > 0
         ? $bpjsClaimName . ' - ' . $bpjsClaimCount . ' data klaim'
         : $bpjsClaimName;
+    $totalDebitKeseluruhan = $totalDebitKomponen;
     $formatNominal = function ($value) {
         $value = (float) $value;
 
@@ -35,14 +36,16 @@
     <title>Rekap Bulanan {{ $formattedMonth }}</title>
     <style>
         @page {
-            margin: 24px;
+            size: legal portrait;
+            margin: 18px 20px;
         }
 
         body {
             color: #1f2937;
             font-family: DejaVu Sans, sans-serif;
             font-size: 11px;
-            line-height: 1.45;
+            line-height: 1.24;
+            margin: 0;
         }
 
         .page {
@@ -50,8 +53,8 @@
         }
 
         .report-header {
-            margin-bottom: 14px;
-            padding: 4px 0 14px;
+            margin-bottom: 10px;
+            padding: 2px 0 10px;
         }
 
         .report-header-table {
@@ -103,18 +106,18 @@
 }
 
 .report-header p {
-    margin: 3px 0 0;
+    margin: 2px 0 0;
     color: #475569;
     font-size: 12px;
-    line-height: 1.28;
+    line-height: 1.18;
 }
 
 .report-eyebrow {
-    margin: 0 0 6px;
+    margin: 0 0 4px;
     color: #0f766e;
     font-size: 10.5px;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.1;
     letter-spacing: 0.16em;
     text-transform: uppercase;
 }
@@ -125,29 +128,29 @@
     font-family: "DejaVu Serif", serif;
     font-size: 15px;
     font-weight: 700;
-    line-height: 1.18;
+    line-height: 1.1;
     letter-spacing: 0.035em;
     text-transform: uppercase;
 }
 
 .clinic-address {
-    margin-top: 4px;
+    margin-top: 2px;
     color: #475569;
     font-size: 12.5px;
     font-weight: 400;
-    line-height: 1.28;
+    line-height: 1.18;
     letter-spacing: 0.01em;
 }
 
 .report-title {
     display: inline-block;
-    margin-top: 12px;
-    padding-bottom: 4px;
+    margin-top: 8px;
+    padding-bottom: 3px;
 
     color: #0f766e;
     font-size: 14px;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.1;
     letter-spacing: 0.055em;
     text-transform: uppercase;
 
@@ -155,16 +158,16 @@
 }
 
 .report-subtitle {
-    margin-top: 4px;
+    margin-top: 3px;
     color: #64748b;
     font-size: 12.5px;
     font-weight: 500;
-    line-height: 1.25;
+    line-height: 1.15;
 }
 
         .header-separator {
-            height: 6px;
-            margin-top: 16px;
+            height: 5px;
+            margin-top: 12px;
             background: #0f8a60;
         }
 
@@ -177,8 +180,8 @@
         .report-table th,
         .report-table td {
             border: 1px solid #94a3b8;
-            padding: 7px 8px;
-            vertical-align: top;
+            padding: 5px 7px;
+            vertical-align: middle;
         }
 
         .report-table th {
@@ -187,12 +190,17 @@
             font-weight: 700;
             text-align: left;
             text-transform: uppercase;
-            
+            line-height: 1.1;
         }
 
         .report-table .number {
             text-align: right;
             white-space: nowrap;
+        }
+
+        .report-table th.center-head,
+        .report-table th.number {
+            text-align: center;
         }
 
         .report-table .date {
@@ -214,14 +222,19 @@
             background: #f8fafc;
         }
 
-        .report-table .total-row td,
-        .report-table .balance-row td {
+        .report-table .total-row td {
             background: #eff6ff;
+        }
+
+        .report-table .balance-row td {
+            background: #fff4d6;
+            color: #9a3412;
+            font-weight: 700;
         }
 
         .signature-wrap {
             width: 100%;
-            margin-top: 26px;
+            margin-top: 18px;
         }
 
         .signature-box {
@@ -232,7 +245,7 @@
         }
 
         .signature-place {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             font-size: 11px;
         }
 
@@ -241,7 +254,7 @@
         }
 
         .signature-space {
-            height: 78px;
+            height: 60px;
         }
 
         .signature-name {
@@ -250,7 +263,7 @@
         }
 
         .signature-role {
-            margin-top: 4px;
+            margin-top: 2px;
             font-size: 10px;
         }
     </style>
@@ -286,7 +299,7 @@
                 <tr>
                     <th style="width: 18%;">Tanggal</th>
                     <th style="width: 38%;">Keterangan</th>
-                    <th style="width: 12%;">Kode</th>
+                    <th style="width: 12%;" class="center-head">Kode</th>
                     <th style="width: 16%;" class="number">Debet</th>
                     <th style="width: 16%;" class="number">Kredit</th>
                 </tr>
@@ -305,7 +318,7 @@
                     </tr>
                 @endforeach
                 <tr class="subtotal-row">
-                    <td colspan="3">Subtotal Versi Klinik</td>
+                    <td colspan="3">Subtotal</td>
                     <td class="number">{{ $formatNominal($totalDebitLayananVersiKlinik) }}</td>
                     <td class="number">{{ $formatNominal($totalKreditLayananVersiKlinik) }}</td>
                 </tr>
@@ -394,14 +407,14 @@
                 </tr>
 
                 <tr class="total-row">
-                    <td colspan="3">Total Kredit Keseluruhan</td>
-                    <td class="number">-</td>
+                    <td colspan="3">Total Keseluruhan</td>
+                    <td class="number">{{ $formatNominal($totalDebitKeseluruhan) }}</td>
                     <td class="number">{{ $formatNominal($totalKredit) }}</td>
                 </tr>
                 <tr class="balance-row">
                     <td colspan="3">Saldo Bulanan</td>
-                    <td class="number">{{ $formatNominal($saldoAkhir) }}</td>
                     <td class="number">-</td>
+                    <td class="number">{{ $formatNominal($saldoAkhir) }}</td>
                 </tr>
             </tbody>
         </table>

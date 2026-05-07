@@ -82,6 +82,10 @@
                             'label' => 'Rekap Pasien',
                             'route' => 'rekap-pasien-pusat',
                         ],
+                        [
+                            'label' => 'Rekap Penyakit',
+                            'route' => 'rekap-penyakit-pusat',
+                        ],
                     ],
                 ],
             ],
@@ -309,6 +313,7 @@
                                         <a
                                             href="{{ route($child['route'], $masterClinicQuery) }}"
                                             class="sidebar-sublink {{ $isChildActive ? 'is-active' : '' }}"
+                                            data-sidebar-nav
                                         >
                                             <span class="sidebar-subdot" aria-hidden="true"></span>
                                             <span class="sidebar-sublink-label">{{ $child['label'] }}</span>
@@ -320,6 +325,7 @@
                             <a
                                 href="{{ $isDisabled ? '#' : route($item['route'], $masterClinicQuery) }}"
                                 class="sidebar-link {{ $isActive ? 'is-active' : '' }} {{ $isDisabled ? 'is-disabled' : '' }}"
+                                @unless($isDisabled) data-sidebar-nav @endunless
                                 @if ($isDisabled)
                                     aria-disabled="true"
                                     onclick="return false;"

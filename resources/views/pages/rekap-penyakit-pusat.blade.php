@@ -1,12 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Rekap Pasien Pusat | Klink Report')
+@section('title', 'Rekap Penyakit Pusat | Klink Report')
 
 @section('content')
 <style>
     .central-shell {
         display: grid;
         gap: 18px;
+    }
+
+    .central-shell > * {
+        min-width: 0;
     }
 
     .central-card,
@@ -42,13 +46,6 @@
         color: #10233d;
         font-size: 1.32rem;
         line-height: 1.1;
-    }
-
-    .central-copy p {
-        margin: 6px 0 0;
-        color: #64748b;
-        font-size: 0.79rem;
-        line-height: 1.65;
     }
 
     .filter-form {
@@ -130,14 +127,14 @@
 
     .central-summary {
         display: grid;
-        gap: 11px;
-        padding: 16px 18px;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 13px;
+        padding: 18px 20px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .summary-card {
         border-radius: 20px;
-        padding: 12px 13px;
+        padding: 14px 15px;
         border: 1px solid rgba(148, 163, 184, 0.14);
         background: linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(255, 255, 255, 0.96));
     }
@@ -145,7 +142,7 @@
     .summary-card span {
         display: block;
         color: #64748b;
-        font-size: 0.58rem;
+        font-size: 0.61rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -153,18 +150,11 @@
 
     .summary-card strong {
         display: block;
-        margin-top: 4px;
+        margin-top: 5px;
         color: #1e293b;
-        font-size: 0.86rem;
+        font-size: 0.94rem;
         font-weight: 700;
         line-height: 1.2;
-    }
-
-    .summary-card p {
-        margin: 6px 0 0;
-        color: #64748b;
-        font-size: 0.75rem;
-        line-height: 1.55;
     }
 
     .summary-card.is-strong {
@@ -198,15 +188,16 @@
     }
 
     .central-table-card {
-        padding: 22px;
+        padding: 18px 18px 16px;
     }
 
     .report-head {
         display: flex;
+        flex-wrap: wrap;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 16px;
+        gap: 12px;
+        margin-bottom: 8px;
     }
 
     .report-head h2 {
@@ -215,12 +206,6 @@
         font-size: 0.98rem;
         font-weight: 700;
         letter-spacing: 0.03em;
-    }
-
-    .report-head p {
-        margin: 4px 0 0;
-        color: #64748b;
-        font-size: 0.75rem;
     }
 
     .report-meta {
@@ -243,6 +228,8 @@
     }
 
     .report-wrap {
+        width: 100%;
+        max-width: 100%;
         overflow-x: auto;
     }
 
@@ -250,10 +237,11 @@
         width: 100%;
         min-width: 980px;
         border-collapse: collapse;
+        table-layout: fixed;
     }
 
     .report-table th {
-        padding: 11px 13px;
+        padding: 9px 13px 10px;
         border-bottom: 1px solid rgba(203, 213, 225, 0.9);
         color: #526277;
         font-size: 0.68rem;
@@ -265,11 +253,11 @@
     }
 
     .report-table td {
-        padding: 12px 13px;
+        padding: 10px 13px;
         border-bottom: 1px solid rgba(226, 232, 240, 0.9);
         color: #1f2937;
         font-size: 0.8rem;
-        vertical-align: top;
+        vertical-align: middle;
     }
 
     .report-table tbody tr:hover {
@@ -277,6 +265,7 @@
     }
 
     .cell-main {
+        display: block;
         font-weight: 700;
         color: #111827;
     }
@@ -292,6 +281,7 @@
     .text-right {
         text-align: right;
         white-space: nowrap;
+        font-variant-numeric: tabular-nums;
     }
 
     .empty-state {
@@ -299,6 +289,14 @@
         color: #64748b;
         font-size: 0.82rem;
         text-align: center;
+    }
+
+    .report-table th:nth-child(3),
+    .report-table td:nth-child(3),
+    .report-table th:last-child,
+    .report-table td:last-child {
+        white-space: normal;
+        word-break: break-word;
     }
 
     @media (max-width: 1100px) {
@@ -311,7 +309,7 @@
         }
 
         .central-summary {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
@@ -329,8 +327,12 @@
 </style>
 
 @php
-    $formatTanggal = function ($value) {
-        return filled($value) ? \Carbon\Carbon::parse($value)->translatedFormat('d/m/Y') : '-';
+    $formatClinicNames = function (array $clinicNames) {
+        $joinedNames = collect($clinicNames)
+            ->filter()
+            ->implode(', ');
+
+        return \Illuminate\Support\Str::limit($joinedNames, 84);
     };
 @endphp
 
@@ -338,14 +340,14 @@
     <section class="central-card">
         <div class="central-copy">
             <p class="page-eyebrow">Pusat Laporan</p>
-            <h1>Rekap Pasien</h1>
+            <h1>Rekap Penyakit</h1>
         </div>
 
         <form method="GET" class="filter-form">
             @if($showClinicFilter && ! $isMasterView)
                 <div class="field-wrap">
-                    <label for="pasien-clinic-id">Klinik Aktif</label>
-                    <select id="pasien-clinic-id" name="clinic_id">
+                    <label for="penyakit-clinic-id">Klinik Aktif</label>
+                    <select id="penyakit-clinic-id" name="clinic_id">
                         <option value="all" @selected($selectedClinicFilter === 'all')>Semua Klinik</option>
                         @foreach($clinicOptions as $clinic)
                             <option value="{{ $clinic->id }}" @selected($selectedClinicFilter === (string) $clinic->id)>
@@ -357,17 +359,17 @@
             @endif
 
             <div class="field-wrap">
-                <label for="pasien-status-lanjut">Jenis Rawat</label>
-                <select id="pasien-status-lanjut" name="status_lanjut">
-                    <option value="all" @selected($selectedStatusFilter === 'all')>Semua Rawat</option>
-                    <option value="ralan" @selected($selectedStatusFilter === 'ralan')>Rawat Jalan</option>
-                    <option value="ranap" @selected($selectedStatusFilter === 'ranap')>Rawat Inap</option>
+                <label for="penyakit-kelompok-usia">Kelompok Usia</label>
+                <select id="penyakit-kelompok-usia" name="kelompok_usia">
+                    <option value="all" @selected($selectedAgeFilter === 'all')>Semua Usia</option>
+                    <option value="anak" @selected($selectedAgeFilter === 'anak')>Anak-anak</option>
+                    <option value="dewasa" @selected($selectedAgeFilter === 'dewasa')>Dewasa</option>
                 </select>
             </div>
 
             <div class="field-wrap">
-                <label for="pasien-bulan">Bulan</label>
-                <input id="pasien-bulan" type="month" name="bulan" value="{{ $selectedMonth }}">
+                <label for="penyakit-bulan">Bulan</label>
+                <input id="penyakit-bulan" type="month" name="bulan" value="{{ $selectedMonth }}">
             </div>
 
             <button type="submit" class="btn-filter">
@@ -387,40 +389,32 @@
             <strong>{{ $periodLabel }}</strong>
         </article>
         <article class="summary-card">
-            <span>Jenis Rawat</span>
-            <strong>{{ $selectedStatusLabel }}</strong>
+            <span>Kelompok Usia</span>
+            <strong>{{ $selectedAgeLabel }}</strong>
         </article>
         <article class="summary-card is-strong">
-            <span>Total Kunjungan</span>
-            <strong>{{ number_format($totalRows, 0, ',', '.') }}</strong>
+            <span>Total ICD</span>
+            <strong>{{ number_format($totalDiseases, 0, ',', '.') }}</strong>
         </article>
         <article class="summary-card">
-            <span>Rawat Jalan</span>
-            <strong>{{ number_format($totalRawatJalan, 0, ',', '.') }}</strong>
-        </article>
-        <article class="summary-card">
-            <span>Rawat Inap</span>
-            <strong>{{ number_format($totalRawatInap, 0, ',', '.') }}</strong>
+            <span>Total Kasus</span>
+            <strong>{{ number_format($totalCases, 0, ',', '.') }}</strong>
         </article>
         <article class="summary-card">
             <span>Laki-laki</span>
-            <strong>{{ number_format($totalLakiLaki, 0, ',', '.') }}</strong>
+            <strong>{{ number_format($totalMale, 0, ',', '.') }}</strong>
         </article>
         <article class="summary-card">
             <span>Perempuan</span>
-            <strong>{{ number_format($totalPerempuan, 0, ',', '.') }}</strong>
+            <strong>{{ number_format($totalFemale, 0, ',', '.') }}</strong>
         </article>
         <article class="summary-card is-success">
-            <span>Jenis Bayar BPJS</span>
-            <strong>{{ number_format($totalBpjs, 0, ',', '.') }}</strong>
+            <span>Anak-anak</span>
+            <strong>{{ number_format($totalChildren, 0, ',', '.') }}</strong>
         </article>
         <article class="summary-card">
-            <span>Jenis Bayar Umum</span>
-            <strong>{{ number_format($totalUmum, 0, ',', '.') }}</strong>
-        </article>
-        <article class="summary-card">
-            <span>Klinik Tampil</span>
-            <strong>{{ $selectedClinicLabel }}</strong>
+            <span>Dewasa</span>
+            <strong>{{ number_format($totalAdults, 0, ',', '.') }}</strong>
         </article>
     </section>
 
@@ -438,12 +432,13 @@
     <section class="central-table-card">
         <div class="report-head">
             <div>
-                <h2>Data Pasien Sesuai Filter</h2>
+                <h2>ICD Terbanyak Sesuai Filter</h2>
             </div>
 
             <div class="report-meta">
                 <span class="meta-pill">{{ number_format($rows->count(), 0, ',', '.') }} baris</span>
-                <span class="meta-pill">{{ $selectedStatusLabel }}</span>
+                <span class="meta-pill">{{ $selectedAgeLabel }}</span>
+                <span class="meta-pill">{{ $selectedClinicLabel }}</span>
                 @if($viewingAllClinics)
                     <span class="meta-pill">Lintas Klinik</span>
                 @endif
@@ -455,49 +450,60 @@
 
         <div class="report-wrap">
             <table class="report-table">
+                <colgroup>
+                    <col style="width: 56px;">
+                    <col style="width: 86px;">
+                    <col>
+                    <col style="width: 106px;">
+                    <col style="width: 106px;">
+                    <col style="width: 106px;">
+                    <col style="width: 106px;">
+                    <col style="width: 106px;">
+                    @if($viewingAllClinics)
+                        <col style="width: 180px;">
+                    @endif
+                </colgroup>
                 <thead>
                     <tr>
-                        <th>Tanggal</th>
-                        <th>No. Rawat</th>
-                        <th>No. RM</th>
-                        <th>Nama Pasien</th>
-                        <th>Jenis Kelamin</th>
-                        <th>Status Lanjut</th>
-                        <th>Jenis Bayar</th>
+                        <th>No.</th>
+                        <th>ICD</th>
+                        <th>Nama Penyakit</th>
+                        <th class="text-right">Total Kasus</th>
+                        <th class="text-right">Laki-laki</th>
+                        <th class="text-right">Perempuan</th>
+                        <th class="text-right">Anak-anak</th>
+                        <th class="text-right">Dewasa</th>
                         @if($viewingAllClinics)
                             <th>Klinik</th>
                         @endif
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($rows as $row)
+                    @forelse($rows as $index => $row)
                         <tr>
-                            <td>{{ $formatTanggal($row['tanggal'] ?? null) }}</td>
+                            <td>{{ $index + 1 }}</td>
                             <td>
-                                <span class="cell-main">{{ $row['no_rawat'] ?? '-' }}</span>
-                            </td>
-                            <td>{{ $row['no_rm'] ?? '-' }}</td>
-                            <td>
-                                <span class="cell-main">{{ $row['nama_pasien'] ?? '-' }}</span>
+                                <span class="cell-main">{{ $row['icd'] ?? '-' }}</span>
                             </td>
                             <td>
-                                <span class="cell-main">{{ $row['jk'] ?? '-' }}</span>
+                                <span class="cell-main">{{ $row['nama_penyakit'] ?? '-' }}</span>
                             </td>
-                            <td>
-                                <span class="cell-main">{{ $row['status_lanjut'] ?? '-' }}</span>
-                            </td>
-                            <td>
-                                <span class="cell-main">{{ $row['penjamin'] ?? '-' }}</span>
-                                <span class="cell-sub">{{ ($row['jenis_bayar_key'] ?? '') === 'bpjs' ? 'BPJS' : 'Umum' }}</span>
-                            </td>
+                            <td class="text-right">{{ number_format((int) ($row['total_kasus'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format((int) ($row['total_laki_laki'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format((int) ($row['total_perempuan'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format((int) ($row['total_anak'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format((int) ($row['total_dewasa'] ?? 0), 0, ',', '.') }}</td>
                             @if($viewingAllClinics)
-                                <td>{{ $row['clinic_name'] ?? '-' }}</td>
+                                <td>
+                                    <span class="cell-main">{{ number_format((int) ($row['clinic_count'] ?? 0), 0, ',', '.') }} klinik</span>
+                                    <span class="cell-sub">{{ $formatClinicNames($row['clinic_names'] ?? []) }}</span>
+                                </td>
                             @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $viewingAllClinics ? 8 : 7 }}" class="empty-state">
-                                Belum ada data pasien yang tampil untuk filter ini.
+                            <td colspan="{{ $viewingAllClinics ? 9 : 8 }}" class="empty-state">
+                                Belum ada data penyakit yang tampil untuk filter ini.
                             </td>
                         </tr>
                     @endforelse

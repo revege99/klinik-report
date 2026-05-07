@@ -362,6 +362,11 @@
         font-variant-numeric: tabular-nums;
     }
 
+    .report-table th.is-code,
+    .report-table th.is-number {
+        text-align: center;
+    }
+
     .report-table tr.section-row td {
         background: #eef5d9;
         color: #31411c;
@@ -385,9 +390,10 @@
     }
 
     .report-table tr.balance-row td {
-        background: #eef6ff;
-        border-color: #cbdcf7;
-        color: #1d4ed8;
+        background: #fff4d6;
+        border-color: #f2cf7a;
+        color: #9a3412;
+        font-weight: 800;
     }
 
     @media (max-width: 1200px) {
@@ -470,6 +476,7 @@
             . number_format((int) ($bpjsClaimSummary['jumlah_komponen_acuan'] ?? 0), 0, ',', '.')
             . ' komponen acuan'
         : $bpjsClaimName;
+    $totalDebitKeseluruhan = $totalDebitKomponen;
     $tabQueryBase = array_filter([
         'bulan' => $selectedMonth,
         'clinic_id' => $selectedClinicFilter !== '' ? $selectedClinicFilter : null,
@@ -625,7 +632,7 @@
                     <tr>
                         <th class="is-date">Tanggal</th>
                         <th>Keterangan</th>
-                        <th>Kode</th>
+                        <th class="is-code">Kode</th>
                         <th class="is-number">Debet</th>
                         <th class="is-number">Kredit</th>
                     </tr>
@@ -760,14 +767,14 @@
                         <td class="is-number">{{ $formatNominal($totalKreditPengeluaran) }}</td>
                     </tr>
                     <tr class="total-row">
-                        <td colspan="3">Total Kredit Keseluruhan</td>
-                        <td class="is-number">-</td>
+                        <td colspan="3">Total Keseluruhan</td>
+                        <td class="is-number">{{ $formatNominal($totalDebitKeseluruhan) }}</td>
                         <td class="is-number">{{ $formatNominal($totalKredit) }}</td>
                     </tr>
                     <tr class="balance-row total-row">
                         <td colspan="3">Saldo Bulanan</td>
-                        <td class="is-number">{{ $formatNominal($saldoAkhir) }}</td>
                         <td class="is-number">-</td>
+                        <td class="is-number">{{ $formatNominal($saldoAkhir) }}</td>
                     </tr>
                 </tbody>
             </table>

@@ -1358,6 +1358,11 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
+                                                <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+                                                <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
+                                                <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
+                                                <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">
+                                                <input type="hidden" name="active_tab_context" value="panel-transaksi-pasien">
                                                 <button
                                                     type="submit"
                                                     class="action-btn delete"
@@ -1490,6 +1495,11 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
+                                                <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+                                                <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
+                                                <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
+                                                <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">
+                                                <input type="hidden" name="active_tab_context" value="panel-data-transaksi">
                                                 <button
                                                     type="submit"
                                                     class="action-btn delete"
@@ -1621,6 +1631,10 @@
             <input type="hidden" name="_transaction_id" id="field-meta-transaction-id">
             <input type="hidden" name="active_tab_context" id="field-active-tab-context">
             <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
+            <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+            <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
+            <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
+            <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">
             <input type="hidden" name="simrs_no_rawat" id="field-simrs_no_rawat">
             <input type="hidden" name="simrs_no_reg" id="field-simrs_no_reg">
             <input type="hidden" name="dokter" id="field-dokter">

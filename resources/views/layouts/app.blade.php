@@ -515,6 +515,11 @@
             transition: margin-left 180ms ease;
         }
 
+        .main-content.is-loading {
+            opacity: 0.72;
+            pointer-events: none;
+        }
+
         .main-content > * {
             max-width: 1420px;
         }
@@ -791,7 +796,7 @@
 
     @include('components.sidebar')
 
-    <main class="main-content">
+    <main class="main-content" data-main-content>
         @yield('content')
     </main>
 
@@ -821,10 +826,18 @@
         (() => {
             const body = document.body;
             const toggle = document.querySelector('[data-sidebar-toggle]');
-            const sidebarGroups = Array.from(document.querySelectorAll('[data-sidebar-group]'));
+            const mainContent = document.querySelector('[data-main-content]');
             const storageKey = 'klink-report.sidebar-collapsed';
             const groupStorageKey = 'klink-report.sidebar-groups';
             const desktopMedia = window.matchMedia('(min-width: 961px)');
+            const confirmModal = document.getElementById('globalConfirmModal');
+            const confirmTitle = document.getElementById('confirmModalTitle');
+            const confirmDescription = document.getElementById('confirmModalDescription');
+            const confirmAccept = document.getElementById('confirmModalAccept');
+            const confirmCloseButtons = Array.from(document.querySelectorAll('[data-confirm-close]'));
+            let pendingForm = null;
+            let lastFocusedElement = null;
+            let activeNavigationController = null;
 
             const readGroupState = () => {
                 try {
@@ -836,6 +849,18 @@
 
             const writeGroupState = (state) => {
                 window.localStorage.setItem(groupStorageKey, JSON.stringify(state));
+            };
+
+            const getSidebarGroups = () => Array.from(document.querySelectorAll('[data-sidebar-group]'));
+
+            const normalizePath = (value) => {
+                if (!value) {
+                    return '/';
+                }
+
+                const normalized = value.replace(/\/+$/, '');
+
+                return normalized === '' ? '/' : normalized;
             };
 
             const setGroupOpen = (group, isOpen) => {
@@ -863,49 +888,34 @@
                 }
             };
 
-            syncState();
+            const bindSidebarGroupToggles = () => {
+                const savedGroups = readGroupState();
 
-            toggle?.addEventListener('click', () => {
-                if (!desktopMedia.matches) {
-                    return;
-                }
+                getSidebarGroups().forEach((group) => {
+                    const groupId = group.dataset.sidebarGroup;
+                    const toggleButton = group.querySelector('[data-sidebar-group-toggle]');
+                    const isActive = group.classList.contains('is-active');
+                    const isOpen = Object.prototype.hasOwnProperty.call(savedGroups, groupId)
+                        ? Boolean(savedGroups[groupId])
+                        : isActive;
 
-                body.classList.toggle('sidebar-collapsed');
-                window.localStorage.setItem(storageKey, body.classList.contains('sidebar-collapsed') ? '1' : '0');
-            });
+                    setGroupOpen(group, isOpen);
 
-            desktopMedia.addEventListener('change', syncState);
+                    if (!toggleButton || toggleButton.dataset.sidebarBound === '1') {
+                        return;
+                    }
 
-            const savedGroups = readGroupState();
+                    toggleButton.dataset.sidebarBound = '1';
+                    toggleButton.addEventListener('click', () => {
+                        const nextOpen = !group.classList.contains('is-open');
+                        const nextState = readGroupState();
 
-            sidebarGroups.forEach((group) => {
-                const groupId = group.dataset.sidebarGroup;
-                const toggleButton = group.querySelector('[data-sidebar-group-toggle]');
-                const isActive = group.classList.contains('is-active');
-                const isOpen = Object.prototype.hasOwnProperty.call(savedGroups, groupId)
-                    ? Boolean(savedGroups[groupId])
-                    : isActive;
-
-                setGroupOpen(group, isOpen);
-
-                toggleButton?.addEventListener('click', () => {
-                    const nextOpen = !group.classList.contains('is-open');
-                    const nextState = readGroupState();
-
-                    setGroupOpen(group, nextOpen);
-                    nextState[groupId] = nextOpen;
-                    writeGroupState(nextState);
+                        setGroupOpen(group, nextOpen);
+                        nextState[groupId] = nextOpen;
+                        writeGroupState(nextState);
+                    });
                 });
-            });
-
-            const confirmModal = document.getElementById('globalConfirmModal');
-            const confirmTitle = document.getElementById('confirmModalTitle');
-            const confirmDescription = document.getElementById('confirmModalDescription');
-            const confirmAccept = document.getElementById('confirmModalAccept');
-            const confirmCloseButtons = Array.from(document.querySelectorAll('[data-confirm-close]'));
-            const confirmForms = Array.from(document.querySelectorAll('form[data-confirm-delete]'));
-            let pendingForm = null;
-            let lastFocusedElement = null;
+            };
 
             const closeConfirmModal = () => {
                 if (!confirmModal || confirmModal.hidden) {
@@ -936,12 +946,144 @@
                 window.setTimeout(() => confirmAccept.focus(), 20);
             };
 
-            confirmForms.forEach((form) => {
-                form.addEventListener('submit', (event) => {
-                    event.preventDefault();
-                    openConfirmModal(form);
+            const updateSidebarActiveState = (url) => {
+                const targetUrl = new URL(url, window.location.origin);
+                const targetPath = normalizePath(targetUrl.pathname);
+                const links = Array.from(document.querySelectorAll('[data-sidebar-nav]'));
+
+                links.forEach((link) => {
+                    const linkUrl = new URL(link.href, window.location.origin);
+                    const isActive = normalizePath(linkUrl.pathname) === targetPath;
+
+                    link.classList.toggle('is-active', isActive);
                 });
+
+                const savedGroups = readGroupState();
+
+                getSidebarGroups().forEach((group) => {
+                    const toggleButton = group.querySelector('[data-sidebar-group-toggle]');
+                    const hasActiveChild = Array.from(group.querySelectorAll('[data-sidebar-nav]'))
+                        .some((link) => link.classList.contains('is-active'));
+                    const groupId = group.dataset.sidebarGroup;
+                    const preferredOpen = Object.prototype.hasOwnProperty.call(savedGroups, groupId)
+                        ? Boolean(savedGroups[groupId])
+                        : hasActiveChild;
+
+                    group.classList.toggle('is-active', hasActiveChild);
+                    toggleButton?.classList.toggle('is-active', hasActiveChild);
+                    setGroupOpen(group, hasActiveChild ? true : preferredOpen);
+                });
+            };
+
+            const runInlineScripts = (container) => {
+                Array.from(container.querySelectorAll('script')).forEach((script) => {
+                    const replacement = document.createElement('script');
+
+                    Array.from(script.attributes).forEach((attribute) => {
+                        replacement.setAttribute(attribute.name, attribute.value);
+                    });
+
+                    replacement.textContent = script.textContent;
+                    script.parentNode?.replaceChild(replacement, script);
+                });
+            };
+
+            const swapMainContent = (html, url, replaceHistory = false) => {
+                if (!mainContent) {
+                    window.location.href = url;
+
+                    return;
+                }
+
+                const parser = new DOMParser();
+                const nextDocument = parser.parseFromString(html, 'text/html');
+                const nextContent = nextDocument.querySelector('[data-main-content]');
+
+                if (!nextContent) {
+                    window.location.href = url;
+
+                    return;
+                }
+
+                closeConfirmModal();
+                mainContent.innerHTML = nextContent.innerHTML;
+                document.title = nextDocument.title || document.title;
+                updateSidebarActiveState(url);
+
+                if (replaceHistory) {
+                    window.history.replaceState({ klinkSidebarNavigation: true }, '', url);
+                } else {
+                    window.history.pushState({ klinkSidebarNavigation: true }, '', url);
+                }
+
+                runInlineScripts(mainContent);
+                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+                window.dispatchEvent(new CustomEvent('klink:content-swapped'));
+            };
+
+            const fetchSidebarPage = async (url, replaceHistory = false) => {
+                if (!mainContent) {
+                    window.location.href = url;
+
+                    return;
+                }
+
+                if (activeNavigationController) {
+                    activeNavigationController.abort();
+                }
+
+                const controller = new AbortController();
+
+                activeNavigationController = controller;
+                mainContent.classList.add('is-loading');
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-Klink-Partial': 'main-content',
+                        },
+                        signal: controller.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Sidebar navigation failed.');
+                    }
+
+                    const html = await response.text();
+                    swapMainContent(html, response.url || url, replaceHistory);
+                } catch (error) {
+                    if (error?.name === 'AbortError') {
+                        return;
+                    }
+
+                    window.location.href = url;
+                } finally {
+                    if (activeNavigationController === controller) {
+                        activeNavigationController = null;
+                    }
+
+                    mainContent.classList.remove('is-loading');
+                }
+            };
+
+            syncState();
+            bindSidebarGroupToggles();
+            updateSidebarActiveState(window.location.href);
+            window.history.replaceState({ klinkSidebarNavigation: true }, '', window.location.href);
+
+            toggle?.addEventListener('click', () => {
+                if (!desktopMedia.matches) {
+                    return;
+                }
+
+                body.classList.toggle('sidebar-collapsed');
+                window.localStorage.setItem(storageKey, body.classList.contains('sidebar-collapsed') ? '1' : '0');
             });
+
+            desktopMedia.addEventListener('change', syncState);
 
             confirmCloseButtons.forEach((button) => {
                 button.addEventListener('click', closeConfirmModal);
@@ -956,6 +1098,56 @@
                 const formToSubmit = pendingForm;
                 closeConfirmModal();
                 HTMLFormElement.prototype.submit.call(formToSubmit);
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target instanceof HTMLFormElement
+                    ? event.target
+                    : event.target?.closest?.('form');
+
+                if (!form || !form.matches('form[data-confirm-delete]')) {
+                    return;
+                }
+
+                event.preventDefault();
+                openConfirmModal(form);
+            });
+
+            document.addEventListener('click', (event) => {
+                const link = event.target instanceof Element
+                    ? event.target.closest('a[data-sidebar-nav]')
+                    : null;
+
+                if (!link || event.defaultPrevented) {
+                    return;
+                }
+
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+
+                if (link.target && link.target !== '_self') {
+                    return;
+                }
+
+                const url = new URL(link.href, window.location.href);
+
+                if (url.origin !== window.location.origin) {
+                    return;
+                }
+
+                if (url.pathname === window.location.pathname && url.search === window.location.search) {
+                    updateSidebarActiveState(url.toString());
+
+                    return;
+                }
+
+                event.preventDefault();
+                fetchSidebarPage(url.toString());
+            });
+
+            window.addEventListener('popstate', () => {
+                fetchSidebarPage(window.location.href, true);
             });
 
             document.addEventListener('keydown', (event) => {

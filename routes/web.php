@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/input-klaim-bpjs/{bpjsKlaimBulanan}', [ReportUiController::class, 'destroyKlaimBpjs'])->name('input-klaim-bpjs.destroy');
     Route::get('/rekap-obat-pusat', [ReportUiController::class, 'rekapObatPusat'])->name('rekap-obat-pusat');
     Route::get('/rekap-pasien-pusat', [ReportUiController::class, 'rekapPasienPusat'])->name('rekap-pasien-pusat');
+    Route::get('/rekap-penyakit-pusat', [ReportUiController::class, 'rekapPenyakitPusat'])->name('rekap-penyakit-pusat');
 
     Route::middleware('admin_or_master')->group(function () {
         Route::put('/transaksi-pasien/{transaksiPasien}', [ReportUiController::class, 'updateTransaksiPasien'])->name('transaksi-pasien.update');
