@@ -448,6 +448,14 @@
         gap: 8px;
     }
 
+    .tab-filter-form.is-range {
+        width: min(100%, 760px);
+    }
+
+    .tab-filter-form.is-summary {
+        width: min(100%, 680px);
+    }
+
     .tab-filter-field {
         display: flex;
         min-width: 140px;
@@ -500,6 +508,34 @@
         align-items: flex-end;
         justify-content: flex-end;
         gap: 8px;
+    }
+
+    .tab-filter-summary {
+        display: flex;
+        min-width: 140px;
+        flex: 0 0 150px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+        padding: 8px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.96));
+    }
+
+    .tab-filter-summary span {
+        color: #64748b;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .tab-filter-summary strong {
+        color: #10233d;
+        font-size: 0.92rem;
+        font-weight: 800;
+        line-height: 1.1;
     }
 
     .tab-filter-button {
@@ -892,7 +928,8 @@
 
         .tab-filter-field,
         .tab-filter-field.is-wide,
-        .tab-filter-field.is-date {
+        .tab-filter-field.is-date,
+        .tab-filter-summary {
             min-width: 0;
             flex: 1 1 180px;
         }
@@ -938,13 +975,18 @@
 </style>
 
 @php
-    $formattedSelectedDate = \Carbon\Carbon::parse($selectedDate)->format('d/m/Y');
+    $formattedSelectedStartDate = \Carbon\Carbon::parse($selectedStartDate)->format('d/m/Y');
+    $formattedSelectedEndDate = \Carbon\Carbon::parse($selectedEndDate)->format('d/m/Y');
+    $formattedSelectedRange = $selectedStartDate === $selectedEndDate
+        ? $formattedSelectedStartDate
+        : $formattedSelectedStartDate . ' - ' . $formattedSelectedEndDate;
     $formattedDataMonth = \Carbon\Carbon::createFromFormat('Y-m', $selectedDataMonth)->locale('id')->translatedFormat('F Y');
     $canEditOperationalData = auth()->user()?->canEditOperationalData();
     $isMasterTransaksiView = auth()->user()?->isMaster();
     $displayTimezone = config('app.display_timezone', 'Asia/Jakarta');
     $lastRekapUpdateDisplay = $lastRekapUpdate?->synced_at?->copy()->timezone($displayTimezone);
     $lastRekapUpdateLabel = $lastRekapUpdateDisplay?->locale('id')->translatedFormat('d M Y H:i');
+    $totalSavedTransactionAmount = (float) $savedTransactionList->sum('jumlah_rp');
 @endphp
 
 <div class="transaksi-shell">
@@ -969,6 +1011,8 @@
 
                 <form method="GET" action="{{ route('transaksi-pasien') }}" class="hero-filter-form">
                         <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                        <input type="hidden" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                        <input type="hidden" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                         <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
                         <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
                         <input type="hidden" name="active_tab" value="{{ $preferredTab ?: 'panel-data-transaksi' }}">
@@ -999,6 +1043,8 @@
                 <form method="POST" action="{{ route('transaksi-pasien.sync-rekap') }}" class="hero-update-form">
                     @csrf
                     <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                    <input type="hidden" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                    <input type="hidden" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
                     <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
                     <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
@@ -1085,7 +1131,7 @@
                 <form
                     method="GET"
                     action="{{ route('transaksi-pasien') }}"
-                    class="tab-filter-form"
+                    class="tab-filter-form is-range"
                     data-tab-filter="panel-transaksi-pasien"
                     @if ($preferredTab === 'panel-data-transaksi') hidden @endif
                 >
@@ -1097,8 +1143,13 @@
                     <input type="hidden" name="active_tab" value="panel-transaksi-pasien">
 
                     <div class="tab-filter-field is-date">
-                        <label for="tab_tanggal">Tanggal Registrasi</label>
-                        <input id="tab_tanggal" type="date" name="tanggal" value="{{ $selectedDate }}">
+                        <label for="tab_tanggal_awal">Tanggal Awal Registrasi</label>
+                        <input id="tab_tanggal_awal" type="date" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                    </div>
+
+                    <div class="tab-filter-field is-date">
+                        <label for="tab_tanggal_akhir">Tanggal Akhir Registrasi</label>
+                        <input id="tab_tanggal_akhir" type="date" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     </div>
 
                     <div class="tab-filter-field is-status">
@@ -1139,14 +1190,21 @@
                 <form
                     method="GET"
                     action="{{ route('transaksi-pasien') }}"
-                    class="tab-filter-form"
+                    class="tab-filter-form is-summary"
                     data-tab-filter="panel-data-transaksi"
                     @if ($preferredTab !== 'panel-data-transaksi') hidden @endif
                 >
                     <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                    <input type="hidden" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                    <input type="hidden" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
                     <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                     <input type="hidden" name="active_tab" value="panel-data-transaksi">
+
+                    <div class="tab-filter-summary" aria-live="polite">
+                        <span>Total Transaksi</span>
+                        <strong>Rp {{ number_format($totalSavedTransactionAmount, 0, ',', '.') }}</strong>
+                    </div>
 
                     <div class="tab-filter-field">
                         <label for="data_bulan">Bulan</label>
@@ -1199,6 +1257,8 @@
                         @if ($preferredTab !== 'panel-rekap-pasien') hidden @endif
                     >
                         <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                        <input type="hidden" name="tanggal_awal" value="{{ $selectedStartDate }}">
+                        <input type="hidden" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                         <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
                         <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
                         <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
@@ -1227,12 +1287,12 @@
         @if ($showTransaksiTab)
         <div class="tab-panel" id="panel-transaksi-pasien" role="tabpanel" aria-labelledby="tab-transaksi-pasien">
             <div class="table-head">
-                <h2>Data Baris Tanggal {{ $formattedSelectedDate }}</h2>
+                <h2>Data Registrasi {{ $formattedSelectedRange }}</h2>
             </div>
 
             @if ($visitRows->isEmpty())
                 <div class="empty-state">
-                    Tidak ada data untuk tanggal {{ $formattedSelectedDate }}.
+                    Tidak ada data untuk rentang registrasi {{ $formattedSelectedRange }}.
                 </div>
             @else
                 <div class="table-wrap">
@@ -1266,7 +1326,7 @@
                                         <div class="row-subtitle">
                                             No Reg: {{ $row['simrs_no_reg'] ?: '-' }}
                                             <br>
-                                            Jam: {{ data_get($row, 'meta.jam_reg', '-') }}
+                                            Tgl: {{ \Carbon\Carbon::parse($row['tanggal'])->format('d/m/Y') }} · Jam: {{ data_get($row, 'meta.jam_reg', '-') }}
                                         </div>
                                     </td>
                                     <td>
@@ -1359,6 +1419,8 @@
                                                 @method('DELETE')
                                                 <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                                                 <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+                                                <input type="hidden" name="context_tanggal_awal" value="{{ $selectedStartDate }}">
+                                                <input type="hidden" name="context_tanggal_akhir" value="{{ $selectedEndDate }}">
                                                 <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
                                                 <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
                                                 <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">
@@ -1496,6 +1558,8 @@
                                                 @method('DELETE')
                                                 <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                                                 <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+                                                <input type="hidden" name="context_tanggal_awal" value="{{ $selectedStartDate }}">
+                                                <input type="hidden" name="context_tanggal_akhir" value="{{ $selectedEndDate }}">
                                                 <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
                                                 <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
                                                 <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">
@@ -1632,6 +1696,8 @@
             <input type="hidden" name="active_tab_context" id="field-active-tab-context">
             <input type="hidden" name="context_clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
             <input type="hidden" name="context_tanggal" value="{{ $selectedDate }}">
+            <input type="hidden" name="context_tanggal_awal" value="{{ $selectedStartDate }}">
+            <input type="hidden" name="context_tanggal_akhir" value="{{ $selectedEndDate }}">
             <input type="hidden" name="context_data_bulan" value="{{ $selectedDataMonth }}">
             <input type="hidden" name="context_data_penjamin" value="{{ $selectedPenjamin }}">
             <input type="hidden" name="context_local_status" value="{{ $selectedLocalStatus }}">

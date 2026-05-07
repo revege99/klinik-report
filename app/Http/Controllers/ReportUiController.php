@@ -250,6 +250,14 @@ class ReportUiController extends Controller
     public function transaksiPasien(Request $request): View
     {
         $selectedDate = $this->normalizeSelectedDate($request->string('tanggal')->toString());
+        $selectedDateRange = $this->normalizeSelectedDateRange(
+            $request->string('tanggal_awal')->toString(),
+            $request->string('tanggal_akhir')->toString(),
+            $selectedDate
+        );
+        $selectedStartDate = $selectedDateRange['start'];
+        $selectedEndDate = $selectedDateRange['end'];
+        $selectedDate = $selectedEndDate;
         $dataMonth = $this->normalizeSelectedMonth($request->string('data_bulan')->toString() ?: $selectedDate);
         $selectedPenjamin = trim($request->string('data_penjamin')->toString());
         $selectedLocalStatus = $this->normalizeLocalStatusFilter($request->string('local_status')->toString());
@@ -277,11 +285,12 @@ class ReportUiController extends Controller
             $savedTransactions = TransaksiPasien::query()
                 ->with(['masterLayanan', 'komponenTransaksi', 'administrasiTransaksi'])
                 ->where('clinic_profile_id', $selectedClinicId)
-                ->whereDate('tanggal', $selectedDate)
+                ->whereDate('tanggal', '>=', $selectedStartDate)
+                ->whereDate('tanggal', '<=', $selectedEndDate)
                 ->get()
                 ->keyBy('simrs_no_rawat');
 
-            $visitRows = $this->simrsVisitRows($selectedDate, $selectedClinicId)
+            $visitRows = $this->simrsVisitRows($selectedStartDate, $selectedClinicId, $selectedEndDate)
                 ->filter(function (array $row) use ($savedTransactions, $selectedLocalStatus) {
                     if ($selectedLocalStatus === 'saved') {
                         return $savedTransactions->has($row['simrs_no_rawat']);
@@ -371,6 +380,8 @@ class ReportUiController extends Controller
 
         return view('pages.input-transaksi-pasien', [
             'selectedDate' => $selectedDate,
+            'selectedStartDate' => $selectedStartDate,
+            'selectedEndDate' => $selectedEndDate,
             'selectedDataMonth' => $dataMonth->format('Y-m'),
             'selectedPenjamin' => $selectedPenjamin,
             'selectedLocalStatus' => $selectedLocalStatus,
@@ -1792,6 +1803,14 @@ class ReportUiController extends Controller
         abort_if($user?->isMaster(), 403, 'Role master tidak menggunakan tombol update rekap pasien.');
 
         $selectedDate = $this->normalizeSelectedDate($request->string('tanggal')->toString());
+        $selectedDateRange = $this->normalizeSelectedDateRange(
+            $request->string('tanggal_awal')->toString(),
+            $request->string('tanggal_akhir')->toString(),
+            $selectedDate
+        );
+        $selectedStartDate = $selectedDateRange['start'];
+        $selectedEndDate = $selectedDateRange['end'];
+        $selectedDate = $selectedEndDate;
         $selectedLocalStatus = $this->normalizeLocalStatusFilter($request->string('local_status')->toString());
         $selectedPenjamin = trim($request->string('data_penjamin')->toString());
         $clinicProfileId = $this->resolveOperationalClinicId($request);
@@ -1802,11 +1821,12 @@ class ReportUiController extends Controller
 
         $savedTransactions = TransaksiPasien::query()
             ->where('clinic_profile_id', $clinicProfileId)
-            ->whereDate('tanggal', $selectedDate)
+            ->whereDate('tanggal', '>=', $selectedStartDate)
+            ->whereDate('tanggal', '<=', $selectedEndDate)
             ->get()
             ->keyBy('simrs_no_rawat');
 
-        $visitRows = $this->simrsVisitRows($selectedDate, $clinicProfileId)
+        $visitRows = $this->simrsVisitRows($selectedStartDate, $clinicProfileId, $selectedEndDate)
             ->filter(function (array $row) use ($savedTransactions, $selectedLocalStatus) {
                 if ($selectedLocalStatus === 'saved') {
                     return $savedTransactions->has($row['simrs_no_rawat']);
@@ -1846,7 +1866,8 @@ class ReportUiController extends Controller
 
         RekapPasien::query()
             ->where('clinic_profile_id', $clinicProfileId)
-            ->whereDate('tanggal', $selectedDate)
+            ->whereDate('tanggal', '>=', $selectedStartDate)
+            ->whereDate('tanggal', '<=', $selectedEndDate)
             ->delete();
 
         if (! empty($payload)) {
@@ -1861,7 +1882,7 @@ class ReportUiController extends Controller
             ['clinic_profile_id' => $clinicProfileId],
             [
                 'user_id' => $user?->id,
-                'tanggal_data' => $selectedDate,
+                'tanggal_data' => $selectedEndDate,
                 'total_data' => count($payload),
                 'synced_at' => $now,
             ]
@@ -1870,6 +1891,8 @@ class ReportUiController extends Controller
         return redirect()
             ->route('transaksi-pasien', [
                 'tanggal' => $selectedDate,
+                'tanggal_awal' => $selectedStartDate,
+                'tanggal_akhir' => $selectedEndDate,
                 'data_bulan' => Carbon::parse($selectedDate)->format('Y-m'),
                 'data_penjamin' => $selectedPenjamin ?: null,
                 'local_status' => $selectedLocalStatus ?: null,
@@ -2149,8 +2172,15 @@ class ReportUiController extends Controller
             ->values();
     }
 
-    private function simrsVisitRows(string $selectedDate, ?int $clinicProfileId = null): Collection
+    private function simrsVisitRows(
+        string $selectedDate,
+        ?int $clinicProfileId = null,
+        ?string $selectedEndDate = null
+    ): Collection
     {
+        $selectedDateRange = $this->normalizeSelectedDateRange($selectedDate, $selectedEndDate, $selectedDate);
+        $startDate = $selectedDateRange['start'];
+        $endDate = $selectedDateRange['end'];
         $simrs = $this->resolveSimrsConnection($clinicProfileId);
         $masterLayanan = MasterLayanan::query()
             ->active()
@@ -2227,7 +2257,8 @@ class ReportUiController extends Controller
             ->leftJoinSub($obatSub, 'obat_data', fn ($join) => $join->on('obat_data.no_rawat', '=', 'rp.no_rawat'))
             ->leftJoinSub($rawatSub, 'rawat_data', fn ($join) => $join->on('rawat_data.no_rawat', '=', 'rp.no_rawat'))
             ->leftJoinSub($kamarSub, 'ranap_data', fn ($join) => $join->on('ranap_data.no_rawat', '=', 'rp.no_rawat'))
-            ->whereDate('rp.tgl_registrasi', $selectedDate)
+            ->whereBetween('rp.tgl_registrasi', [$startDate, $endDate])
+            ->orderByDesc('rp.tgl_registrasi')
             ->orderBy('rp.jam_reg')
             ->selectRaw('
                 rp.no_rawat,
@@ -2465,6 +2496,13 @@ class ReportUiController extends Controller
         $selectedDate = $this->normalizeSelectedDate(
             $request->input('context_tanggal', $data['tanggal'] ?? now()->toDateString())
         );
+        $selectedDateRange = $this->normalizeSelectedDateRange(
+            $request->input('context_tanggal_awal'),
+            $request->input('context_tanggal_akhir'),
+            $selectedDate
+        );
+        $selectedStartDate = $selectedDateRange['start'];
+        $selectedEndDate = $selectedDateRange['end'];
         $selectedDataMonth = $this->normalizeSelectedMonth(
             $request->input('context_data_bulan', Carbon::parse($selectedDate)->format('Y-m'))
         )->format('Y-m');
@@ -2477,7 +2515,9 @@ class ReportUiController extends Controller
         }
 
         return [
-            'tanggal' => $selectedDate,
+            'tanggal' => $selectedEndDate,
+            'tanggal_awal' => $selectedStartDate,
+            'tanggal_akhir' => $selectedEndDate,
             'data_bulan' => $selectedDataMonth,
             'data_penjamin' => $selectedPenjamin !== '' ? $selectedPenjamin : null,
             'local_status' => $selectedLocalStatus !== '' ? $selectedLocalStatus : null,
@@ -4416,6 +4456,25 @@ class ReportUiController extends Controller
         } catch (\Throwable) {
             return now()->toDateString();
         }
+    }
+
+    private function normalizeSelectedDateRange(
+        ?string $startDate,
+        ?string $endDate,
+        ?string $fallbackDate = null
+    ): array {
+        $fallback = $this->normalizeSelectedDate($fallbackDate);
+        $normalizedStart = $this->normalizeSelectedDate($startDate ?: $fallback);
+        $normalizedEnd = $this->normalizeSelectedDate($endDate ?: $fallback);
+
+        if ($normalizedStart > $normalizedEnd) {
+            [$normalizedStart, $normalizedEnd] = [$normalizedEnd, $normalizedStart];
+        }
+
+        return [
+            'start' => $normalizedStart,
+            'end' => $normalizedEnd,
+        ];
     }
 
     private function normalizeSelectedMonth(?string $selectedMonth): Carbon
