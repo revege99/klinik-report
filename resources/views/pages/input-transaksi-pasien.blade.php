@@ -156,6 +156,34 @@
         line-height: 1.4;
     }
 
+    .hero-total-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        padding: 9px 14px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(220, 252, 231, 0.92));
+        border: 1px solid rgba(34, 197, 94, 0.16);
+        color: #166534;
+    }
+
+    .hero-total-summary span {
+        color: #4b5563;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-total-summary strong {
+        color: #14532d;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+
     .filter-card,
     .table-card,
     .message-card {
@@ -449,11 +477,13 @@
     }
 
     .tab-filter-form.is-range {
-        width: min(100%, 760px);
+        width: min(100%, 670px);
     }
 
     .tab-filter-form.is-summary {
-        width: min(100%, 760px);
+        width: min(100%, 700px);
+        flex-wrap: nowrap;
+        align-items: flex-end;
     }
 
     .tab-filter-field {
@@ -469,12 +499,13 @@
     }
 
     .tab-filter-field.is-date {
-        flex-basis: 170px;
+        min-width: 128px;
+        flex-basis: 138px;
     }
 
     .tab-filter-field.is-date-compact {
-        min-width: 122px;
-        flex-basis: 132px;
+        min-width: 118px;
+        flex-basis: 126px;
     }
 
     .tab-filter-field.is-status {
@@ -491,13 +522,13 @@
 
     .tab-filter-field input,
     .tab-filter-field select {
-        height: 40px;
+        height: 38px;
         border: 1px solid #d7e1ef;
-        border-radius: 14px;
-        padding: 9px 12px;
+        border-radius: 12px;
+        padding: 8px 10px;
         background: #f8fafc;
         color: #10233d;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
 
     .tab-filter-field input:focus,
@@ -515,39 +546,15 @@
         gap: 8px;
     }
 
-    .tab-filter-summary {
-        display: flex;
-        min-width: 140px;
-        flex: 0 0 150px;
-        flex-direction: column;
-        justify-content: center;
-        gap: 3px;
-        padding: 8px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.96));
-    }
-
-    .tab-filter-summary span {
-        color: #64748b;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .tab-filter-summary strong {
-        color: #10233d;
-        font-size: 0.92rem;
-        font-weight: 800;
-        line-height: 1.1;
+    .tab-filter-form.is-summary .tab-filter-actions {
+        flex: 0 0 auto;
     }
 
     .tab-filter-button {
-        min-height: 40px;
-        border-radius: 14px;
-        padding: 10px 13px;
-        font-size: 0.74rem;
+        min-height: 38px;
+        border-radius: 12px;
+        padding: 8px 11px;
+        font-size: 0.72rem;
         font-weight: 700;
         letter-spacing: 0.03em;
     }
@@ -931,10 +938,14 @@
             justify-content: flex-start;
         }
 
+        .tab-filter-form.is-summary {
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+
         .tab-filter-field,
         .tab-filter-field.is-wide,
-        .tab-filter-field.is-date,
-        .tab-filter-summary {
+        .tab-filter-field.is-date {
             min-width: 0;
             flex: 1 1 180px;
         }
@@ -1045,6 +1056,11 @@
             </div>
         @elseif ($showUpdateRekapButton)
             <div class="hero-tools">
+                <div class="hero-total-summary" aria-live="polite">
+                    <span>Total Transaksi</span>
+                    <strong>Rp {{ number_format($totalSavedTransactionAmount, 0, ',', '.') }}</strong>
+                </div>
+
                 <form method="POST" action="{{ route('transaksi-pasien.sync-rekap') }}" class="hero-update-form">
                     @csrf
                     <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
@@ -1148,12 +1164,12 @@
                     <input type="hidden" name="active_tab" value="panel-transaksi-pasien">
 
                     <div class="tab-filter-field is-date">
-                        <label for="tab_tanggal_awal">Tanggal Awal Registrasi</label>
+                        <label for="tab_tanggal_awal">Tanggal Awal</label>
                         <input id="tab_tanggal_awal" type="date" name="tanggal_awal" value="{{ $selectedStartDate }}">
                     </div>
 
                     <div class="tab-filter-field is-date">
-                        <label for="tab_tanggal_akhir">Tanggal Akhir Registrasi</label>
+                        <label for="tab_tanggal_akhir">Tanggal Akhir</label>
                         <input id="tab_tanggal_akhir" type="date" name="tanggal_akhir" value="{{ $selectedEndDate }}">
                     </div>
 
@@ -1203,11 +1219,6 @@
                     <input type="hidden" name="local_status" value="{{ $selectedLocalStatus }}">
                     <input type="hidden" name="clinic_id" value="{{ $viewingAllClinics ? 'all' : $selectedClinicId }}">
                     <input type="hidden" name="active_tab" value="panel-data-transaksi">
-
-                    <div class="tab-filter-summary" aria-live="polite">
-                        <span>Total Transaksi</span>
-                        <strong>Rp {{ number_format($totalSavedTransactionAmount, 0, ',', '.') }}</strong>
-                    </div>
 
                     <div class="tab-filter-field is-date-compact">
                         <label for="data_tanggal_awal">Tanggal Awal</label>
