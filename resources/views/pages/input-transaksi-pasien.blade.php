@@ -110,6 +110,10 @@
         flex: 1 1 auto;
     }
 
+    .hero-filter-form .hero-total-summary {
+        flex: 0 0 auto;
+    }
+
     .hero-update-form {
         display: flex;
         align-items: center;
@@ -1032,6 +1036,11 @@
                         <input type="hidden" name="data_bulan" value="{{ $selectedDataMonth }}">
                         <input type="hidden" name="data_penjamin" value="{{ $selectedPenjamin }}">
                         <input type="hidden" name="active_tab" value="{{ $preferredTab ?: 'panel-data-transaksi' }}">
+                        <div class="hero-total-summary" aria-live="polite">
+                            <span>Total Transaksi</span>
+                            <strong>Rp {{ number_format($totalSavedTransactionAmount, 0, ',', '.') }}</strong>
+                        </div>
+
                         <div class="field-wrap">
                             <label for="hero-clinic-id">Klinik Aktif</label>
                             <select id="hero-clinic-id" name="clinic_id">

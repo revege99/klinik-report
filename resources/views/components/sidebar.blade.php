@@ -79,6 +79,18 @@
                             'route' => 'rekap-obat-pusat',
                         ],
                         [
+                            'label' => 'Rekap Stok Obat',
+                            'route' => 'rekap-stok-obat-pusat',
+                        ],
+                        [
+                            'label' => 'Rekap Retur Obat',
+                            'route' => 'rekap-retur-obat-pusat',
+                        ],
+                        [
+                            'label' => 'Pembelian Obat',
+                            'route' => 'rekap-pembelian-obat-pusat',
+                        ],
+                        [
                             'label' => 'Rekap Pasien',
                             'route' => 'rekap-pasien-pusat',
                         ],

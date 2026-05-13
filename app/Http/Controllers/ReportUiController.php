@@ -1553,6 +1553,461 @@ class ReportUiController extends Controller
         ]);
     }
 
+    public function rekapStokObatPusat(Request $request): View
+    {
+        $selectedBangsalCode = $this->normalizeBangsalCode($request->string('kd_bangsal')->toString());
+        $clinicContext = $this->clinicContext($request);
+        $isMasterView = $request->user()?->isMaster() ?? false;
+
+        if ($isMasterView && ! $clinicContext['selectedClinicId'] && $clinicContext['clinicOptions']->isNotEmpty()) {
+            $defaultClinic = $clinicContext['clinicOptions']->first();
+            $clinicContext['selectedClinic'] = $defaultClinic;
+            $clinicContext['selectedClinicId'] = $defaultClinic?->id;
+            $clinicContext['selectedClinicLabel'] = $defaultClinic?->nama_pendek
+                ?: $defaultClinic?->nama_klinik
+                ?: 'Klinik';
+        }
+
+        $warnings = collect();
+        $rows = collect();
+        $successfulClinicCount = 0;
+        $configuredClinicIds = ClinicDatabaseConnection::query()
+            ->active()
+            ->where('connection_role', 'simrs')
+            ->pluck('clinic_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        if ($clinicContext['viewingAllClinics']) {
+            foreach ($clinicContext['clinicOptions'] as $clinic) {
+                $clinicLabel = $clinic->nama_pendek ?: $clinic->nama_klinik;
+
+                if (! $configuredClinicIds->has((int) $clinic->id)) {
+                    $warnings->push('Koneksi SIMRS untuk ' . $clinicLabel . ' belum diatur, jadi stok obatnya dilewati.');
+
+                    continue;
+                }
+
+                try {
+                    $successfulClinicCount++;
+                    $clinicRows = $this->simrsStokObatRows($selectedBangsalCode, (int) $clinic->id)
+                        ->map(fn (array $row) => array_merge($row, [
+                            'clinic_id' => (int) $clinic->id,
+                            'clinic_name' => $clinicLabel,
+                        ]));
+                    $rows = $rows->concat($clinicRows);
+                } catch (\Throwable $exception) {
+                    $warnings->push(
+                        'Koneksi stok obat pusat untuk ' . $clinicLabel . ' gagal dibaca: '
+                        . $this->humanizeClinicConnectionError($exception)
+                    );
+                }
+            }
+        } elseif ($clinicContext['selectedClinicId']) {
+            try {
+                $successfulClinicCount = 1;
+                $rows = $this->simrsStokObatRows($selectedBangsalCode, $clinicContext['selectedClinicId']);
+            } catch (\Throwable $exception) {
+                $warnings->push(
+                    'Data stok obat untuk '
+                    . $clinicContext['selectedClinicLabel']
+                    . ' belum bisa dibaca: '
+                    . $this->humanizeClinicConnectionError($exception)
+                );
+            }
+        }
+
+        $rows = $rows
+            ->sortBy(fn (array $row) => sprintf(
+                '%s_%s_%s',
+                strtolower((string) ($row['clinic_name'] ?? '')),
+                strtolower((string) ($row['nama_brng'] ?? '')),
+                strtolower((string) ($row['kode_brng'] ?? ''))
+            ))
+            ->values();
+
+        return view('pages.rekap-farmasi-pusat', [
+            'pageTitle' => 'Rekap Stok Obat',
+            'pageDescription' => 'Snapshot stok obat saat ini dari database SIMRS berdasarkan bangsal yang dipilih.',
+            'filterMode' => 'stock',
+            'selectedBangsalCode' => $selectedBangsalCode,
+            'selectedStartDate' => null,
+            'selectedEndDate' => null,
+            'periodLabel' => 'Snapshot ' . now()->locale('id')->translatedFormat('d F Y'),
+            'summaryCards' => [
+                [
+                    'label' => 'Snapshot',
+                    'value' => now()->locale('id')->translatedFormat('d F Y'),
+                    'description' => 'Stok obat tidak mendukung backdate dan selalu dibaca dari kondisi saat ini.',
+                ],
+                [
+                    'label' => 'Klinik Tampil',
+                    'value' => $clinicContext['selectedClinicLabel'],
+                    'description' => $clinicContext['viewingAllClinics']
+                        ? 'Snapshot pusat lintas klinik aktif.'
+                        : 'Snapshot fokus pada klinik yang sedang dipilih.',
+                ],
+                [
+                    'label' => 'Kode Bangsal',
+                    'value' => $selectedBangsalCode,
+                    'description' => 'Bangsal aktif yang dipakai untuk membaca stok gudang barang.',
+                ],
+                [
+                    'label' => 'Total Stok',
+                    'value' => $this->formatCentralMetricNumber((float) $rows->sum('stok_saat_ini')),
+                    'description' => 'Total stok dari ' . number_format($rows->count(), 0, ',', '.') . ' baris obat yang berhasil dibaca.',
+                    'accent' => true,
+                ],
+            ],
+            'tableTitle' => $clinicContext['viewingAllClinics']
+                ? 'Detail Stok Obat Semua Klinik'
+                : 'Detail Stok Obat ' . $clinicContext['selectedClinicLabel'],
+            'tableDescription' => $clinicContext['viewingAllClinics']
+                ? 'Snapshot stok ditampilkan langsung dari setiap klinik yang berhasil dibaca.'
+                : 'Snapshot stok bangsal aktif untuk klinik yang sedang dipilih.',
+            'columns' => $clinicContext['viewingAllClinics']
+                ? [
+                    ['label' => 'Klinik', 'key' => 'clinic_name', 'class' => 'cell-name'],
+                    ['label' => 'Kode Barang', 'key' => 'kode_brng', 'class' => 'cell-code'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Kode Bangsal', 'key' => 'kd_bangsal', 'class' => 'cell-code'],
+                    ['label' => 'Nama Bangsal', 'key' => 'nm_bangsal'],
+                    ['label' => 'Stok Saat Ini', 'key' => 'stok_saat_ini', 'type' => 'number', 'align' => 'right'],
+                ]
+                : [
+                    ['label' => 'Kode Barang', 'key' => 'kode_brng', 'class' => 'cell-code'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Kode Bangsal', 'key' => 'kd_bangsal', 'class' => 'cell-code'],
+                    ['label' => 'Nama Bangsal', 'key' => 'nm_bangsal'],
+                    ['label' => 'Stok Saat Ini', 'key' => 'stok_saat_ini', 'type' => 'number', 'align' => 'right'],
+                ],
+            'rows' => $rows,
+            'warnings' => $warnings,
+            'successfulClinicCount' => $successfulClinicCount,
+            'clinicOptions' => $clinicContext['clinicOptions'],
+            'showClinicFilter' => $clinicContext['showClinicFilter'],
+            'allowAllClinicOption' => false,
+            'selectedClinicFilter' => $clinicContext['viewingAllClinics']
+                ? 'all'
+                : (string) ($clinicContext['selectedClinicId'] ?: ''),
+            'selectedClinicLabel' => $clinicContext['selectedClinicLabel'],
+            'viewingAllClinics' => $clinicContext['viewingAllClinics'],
+            'isMasterView' => $isMasterView,
+            'emptyMessage' => 'Belum ada data stok obat untuk filter ini.',
+        ]);
+    }
+
+    public function rekapReturObatPusat(Request $request): View
+    {
+        $defaultStartDate = now()->startOfMonth()->toDateString();
+        $defaultEndDate = now()->endOfMonth()->toDateString();
+        $selectedDateRange = $this->normalizeSelectedDateRange(
+            $request->string('tanggal_awal')->toString() ?: $defaultStartDate,
+            $request->string('tanggal_akhir')->toString() ?: $defaultEndDate,
+            $defaultEndDate
+        );
+        $selectedStartDate = $selectedDateRange['start'];
+        $selectedEndDate = $selectedDateRange['end'];
+        $clinicContext = $this->clinicContext($request, true);
+        $isMasterView = $request->user()?->isMaster() ?? false;
+
+        if ($isMasterView) {
+            $clinicContext['selectedClinicId'] = null;
+            $clinicContext['selectedClinicLabel'] = 'Semua Klinik';
+            $clinicContext['viewingAllClinics'] = true;
+            $clinicContext['showClinicFilter'] = false;
+        }
+
+        $warnings = collect();
+        $rows = collect();
+        $successfulClinicCount = 0;
+        $configuredClinicIds = ClinicDatabaseConnection::query()
+            ->active()
+            ->where('connection_role', 'simrs')
+            ->pluck('clinic_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        if ($clinicContext['viewingAllClinics']) {
+            foreach ($clinicContext['clinicOptions'] as $clinic) {
+                $clinicLabel = $clinic->nama_pendek ?: $clinic->nama_klinik;
+
+                if (! $configuredClinicIds->has((int) $clinic->id)) {
+                    $warnings->push('Koneksi SIMRS untuk ' . $clinicLabel . ' belum diatur, jadi retur obatnya dilewati.');
+
+                    continue;
+                }
+
+                try {
+                    $successfulClinicCount++;
+                    $clinicRows = $this->simrsReturObatRows($selectedStartDate, $selectedEndDate, (int) $clinic->id)
+                        ->map(fn (array $row) => array_merge($row, [
+                            'clinic_id' => (int) $clinic->id,
+                            'clinic_name' => $clinicLabel,
+                        ]));
+                    $rows = $rows->concat($clinicRows);
+                } catch (\Throwable $exception) {
+                    $warnings->push(
+                        'Koneksi retur obat pusat untuk ' . $clinicLabel . ' gagal dibaca: '
+                        . $this->humanizeClinicConnectionError($exception)
+                    );
+                }
+            }
+        } elseif ($clinicContext['selectedClinicId']) {
+            try {
+                $successfulClinicCount = 1;
+                $rows = $this->simrsReturObatRows($selectedStartDate, $selectedEndDate, $clinicContext['selectedClinicId']);
+            } catch (\Throwable $exception) {
+                $warnings->push(
+                    'Data retur obat untuk '
+                    . $clinicContext['selectedClinicLabel']
+                    . ' belum bisa dibaca: '
+                    . $this->humanizeClinicConnectionError($exception)
+                );
+            }
+        }
+
+        $rows = $rows
+            ->sortByDesc(fn (array $row) => sprintf(
+                '%s_%s_%s_%s',
+                $row['tgl_retur'] ?? '',
+                $row['no_retur_beli'] ?? '',
+                $row['no_faktur'] ?? '',
+                $row['kode_brng'] ?? ''
+            ))
+            ->values();
+
+        $returDocumentCount = $rows->pluck('no_retur_beli')->filter()->unique()->count();
+        $totalReturQty = (float) $rows->sum('jml_retur');
+        $totalReturNominal = (float) $rows->sum('total');
+
+        return view('pages.rekap-farmasi-pusat', [
+            'pageTitle' => 'Rekap Retur Obat',
+            'pageDescription' => 'Ringkasan retur obat dari database SIMRS berdasarkan rentang tanggal retur yang dipilih.',
+            'filterMode' => 'date_range',
+            'selectedBangsalCode' => null,
+            'selectedStartDate' => $selectedStartDate,
+            'selectedEndDate' => $selectedEndDate,
+            'periodLabel' => $this->dateRangeLabel($selectedStartDate, $selectedEndDate),
+            'summaryCards' => [
+                [
+                    'label' => 'Periode Laporan',
+                    'value' => $this->dateRangeLabel($selectedStartDate, $selectedEndDate),
+                    'description' => 'Perhitungan mengikuti tanggal retur pembelian pada rentang yang dipilih.',
+                ],
+                [
+                    'label' => 'Klinik Tampil',
+                    'value' => $clinicContext['selectedClinicLabel'],
+                    'description' => $clinicContext['viewingAllClinics']
+                        ? 'Agregasi pusat lintas klinik aktif.'
+                        : 'Data fokus pada klinik yang sedang dipilih.',
+                ],
+                [
+                    'label' => 'Dokumen Retur',
+                    'value' => number_format($returDocumentCount, 0, ',', '.'),
+                    'description' => 'Total dokumen retur dari ' . number_format($rows->count(), 0, ',', '.') . ' baris detail retur.',
+                ],
+                [
+                    'label' => 'Total Obat Retur',
+                    'value' => $this->formatCentralMetricNumber($totalReturQty),
+                    'description' => 'Total item obat yang diretur pada periode aktif. Nilai retur Rp ' . number_format($totalReturNominal, 0, ',', '.') . '.',
+                    'accent' => true,
+                ],
+            ],
+            'tableTitle' => $clinicContext['viewingAllClinics']
+                ? 'Detail Retur Obat Semua Klinik'
+                : 'Detail Retur Obat ' . $clinicContext['selectedClinicLabel'],
+            'tableDescription' => 'Retur obat ditampilkan ringkas berdasarkan tanggal retur terbaru dan jumlah obat yang diretur.',
+            'columns' => $clinicContext['viewingAllClinics']
+                ? [
+                    ['label' => 'Klinik', 'key' => 'clinic_name', 'class' => 'cell-name'],
+                    ['label' => 'Tgl Retur', 'key' => 'tgl_retur', 'type' => 'date'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Jml Retur', 'key' => 'jml_retur', 'type' => 'number', 'align' => 'right'],
+                ]
+                : [
+                    ['label' => 'Tgl Retur', 'key' => 'tgl_retur', 'type' => 'date'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Jml Retur', 'key' => 'jml_retur', 'type' => 'number', 'align' => 'right'],
+                ],
+            'rows' => $rows,
+            'warnings' => $warnings,
+            'successfulClinicCount' => $successfulClinicCount,
+            'clinicOptions' => $clinicContext['clinicOptions'],
+            'showClinicFilter' => $clinicContext['showClinicFilter'],
+            'selectedClinicFilter' => $clinicContext['viewingAllClinics']
+                ? 'all'
+                : (string) ($clinicContext['selectedClinicId'] ?: ''),
+            'selectedClinicLabel' => $clinicContext['selectedClinicLabel'],
+            'viewingAllClinics' => $clinicContext['viewingAllClinics'],
+            'isMasterView' => $isMasterView,
+            'tableMinWidth' => '640px',
+            'emptyMessage' => 'Belum ada data retur obat untuk filter ini.',
+        ]);
+    }
+
+    public function rekapPembelianObatPusat(Request $request): View
+    {
+        $defaultStartDate = now()->startOfMonth()->toDateString();
+        $defaultEndDate = now()->endOfMonth()->toDateString();
+        $selectedDateRange = $this->normalizeSelectedDateRange(
+            $request->string('tanggal_awal')->toString() ?: $defaultStartDate,
+            $request->string('tanggal_akhir')->toString() ?: $defaultEndDate,
+            $defaultEndDate
+        );
+        $selectedStartDate = $selectedDateRange['start'];
+        $selectedEndDate = $selectedDateRange['end'];
+        $clinicContext = $this->clinicContext($request, true);
+        $isMasterView = $request->user()?->isMaster() ?? false;
+
+        if ($isMasterView) {
+            $clinicContext['selectedClinicId'] = null;
+            $clinicContext['selectedClinicLabel'] = 'Semua Klinik';
+            $clinicContext['viewingAllClinics'] = true;
+            $clinicContext['showClinicFilter'] = false;
+        }
+
+        $warnings = collect();
+        $rows = collect();
+        $successfulClinicCount = 0;
+        $configuredClinicIds = ClinicDatabaseConnection::query()
+            ->active()
+            ->where('connection_role', 'simrs')
+            ->pluck('clinic_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        if ($clinicContext['viewingAllClinics']) {
+            foreach ($clinicContext['clinicOptions'] as $clinic) {
+                $clinicLabel = $clinic->nama_pendek ?: $clinic->nama_klinik;
+
+                if (! $configuredClinicIds->has((int) $clinic->id)) {
+                    $warnings->push('Koneksi SIMRS untuk ' . $clinicLabel . ' belum diatur, jadi pembelian obatnya dilewati.');
+
+                    continue;
+                }
+
+                try {
+                    $successfulClinicCount++;
+                    $clinicRows = $this->simrsPembelianObatRows($selectedStartDate, $selectedEndDate, (int) $clinic->id)
+                        ->map(fn (array $row) => array_merge($row, [
+                            'clinic_id' => (int) $clinic->id,
+                            'clinic_name' => $clinicLabel,
+                        ]));
+                    $rows = $rows->concat($clinicRows);
+                } catch (\Throwable $exception) {
+                    $warnings->push(
+                        'Koneksi pembelian obat pusat untuk ' . $clinicLabel . ' gagal dibaca: '
+                        . $this->humanizeClinicConnectionError($exception)
+                    );
+                }
+            }
+        } elseif ($clinicContext['selectedClinicId']) {
+            try {
+                $successfulClinicCount = 1;
+                $rows = $this->simrsPembelianObatRows($selectedStartDate, $selectedEndDate, $clinicContext['selectedClinicId']);
+            } catch (\Throwable $exception) {
+                $warnings->push(
+                    'Data pembelian obat untuk '
+                    . $clinicContext['selectedClinicLabel']
+                    . ' belum bisa dibaca: '
+                    . $this->humanizeClinicConnectionError($exception)
+                );
+            }
+        }
+
+        $rows = $rows
+            ->sortByDesc(fn (array $row) => sprintf(
+                '%s_%s_%s_%s',
+                $row['tgl_pesan'] ?? '',
+                $row['no_faktur'] ?? '',
+                $row['no_order'] ?? '',
+                $row['kode_brng'] ?? ''
+            ))
+            ->values();
+
+        $fakturCount = $rows->pluck('no_faktur')->filter()->unique()->count();
+        $totalJumlah = (float) $rows->sum('jumlah');
+        $totalSubtotal = (float) $rows->sum('subtotal');
+
+        return view('pages.rekap-farmasi-pusat', [
+            'pageTitle' => 'Pembelian Obat',
+            'pageDescription' => 'Detail pembelian obat dari database SIMRS berdasarkan rentang tanggal pemesanan yang dipilih.',
+            'filterMode' => 'date_range',
+            'selectedBangsalCode' => null,
+            'selectedStartDate' => $selectedStartDate,
+            'selectedEndDate' => $selectedEndDate,
+            'periodLabel' => $this->dateRangeLabel($selectedStartDate, $selectedEndDate),
+            'summaryCards' => [
+                [
+                    'label' => 'Periode Laporan',
+                    'value' => $this->dateRangeLabel($selectedStartDate, $selectedEndDate),
+                    'description' => 'Perhitungan mengikuti tanggal pemesanan obat pada rentang yang dipilih.',
+                ],
+                [
+                    'label' => 'Klinik Tampil',
+                    'value' => $clinicContext['selectedClinicLabel'],
+                    'description' => $clinicContext['viewingAllClinics']
+                        ? 'Agregasi pusat lintas klinik aktif.'
+                        : 'Data fokus pada klinik yang sedang dipilih.',
+                ],
+                [
+                    'label' => 'No Faktur',
+                    'value' => number_format($fakturCount, 0, ',', '.'),
+                    'description' => 'Total faktur pembelian dari ' . number_format($rows->count(), 0, ',', '.') . ' baris detail pemesanan.',
+                ],
+                [
+                    'label' => 'Total Pembelian',
+                    'value' => $this->formatCentralCurrency($totalSubtotal),
+                    'description' => 'Total jumlah pembelian ' . $this->formatCentralMetricNumber($totalJumlah) . ' item obat.',
+                    'accent' => true,
+                ],
+            ],
+            'tableTitle' => $clinicContext['viewingAllClinics']
+                ? 'Detail Pembelian Obat Semua Klinik'
+                : 'Detail Pembelian Obat ' . $clinicContext['selectedClinicLabel'],
+            'tableDescription' => 'Pembelian obat ditampilkan sesuai tanggal pemesanan dan diurutkan dari data terbaru.',
+            'columns' => $clinicContext['viewingAllClinics']
+                ? [
+                    ['label' => 'Klinik', 'key' => 'clinic_name', 'class' => 'cell-name'],
+                    ['label' => 'Tgl Pesan', 'key' => 'tgl_pesan', 'type' => 'date'],
+                    ['label' => 'No Faktur', 'key' => 'no_faktur', 'class' => 'cell-code'],
+                    ['label' => 'No Order', 'key' => 'no_order', 'class' => 'cell-code'],
+                    ['label' => 'Supplier', 'key' => 'nama_suplier'],
+                    ['label' => 'Kode Barang', 'key' => 'kode_brng', 'class' => 'cell-code'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Jumlah', 'key' => 'jumlah', 'type' => 'number', 'align' => 'right'],
+                    ['label' => 'H. Pesan', 'key' => 'h_pesan', 'type' => 'currency', 'align' => 'right'],
+                    ['label' => 'Subtotal', 'key' => 'subtotal', 'type' => 'currency', 'align' => 'right'],
+                    ['label' => 'Status', 'key' => 'status'],
+                ]
+                : [
+                    ['label' => 'Tgl Pesan', 'key' => 'tgl_pesan', 'type' => 'date'],
+                    ['label' => 'No Faktur', 'key' => 'no_faktur', 'class' => 'cell-code'],
+                    ['label' => 'No Order', 'key' => 'no_order', 'class' => 'cell-code'],
+                    ['label' => 'Supplier', 'key' => 'nama_suplier'],
+                    ['label' => 'Kode Barang', 'key' => 'kode_brng', 'class' => 'cell-code'],
+                    ['label' => 'Nama Obat', 'key' => 'nama_brng', 'class' => 'cell-name'],
+                    ['label' => 'Jumlah', 'key' => 'jumlah', 'type' => 'number', 'align' => 'right'],
+                    ['label' => 'H. Pesan', 'key' => 'h_pesan', 'type' => 'currency', 'align' => 'right'],
+                    ['label' => 'Subtotal', 'key' => 'subtotal', 'type' => 'currency', 'align' => 'right'],
+                    ['label' => 'Status', 'key' => 'status'],
+                ],
+            'rows' => $rows,
+            'warnings' => $warnings,
+            'successfulClinicCount' => $successfulClinicCount,
+            'clinicOptions' => $clinicContext['clinicOptions'],
+            'showClinicFilter' => $clinicContext['showClinicFilter'],
+            'selectedClinicFilter' => $clinicContext['viewingAllClinics']
+                ? 'all'
+                : (string) ($clinicContext['selectedClinicId'] ?: ''),
+            'selectedClinicLabel' => $clinicContext['selectedClinicLabel'],
+            'viewingAllClinics' => $clinicContext['viewingAllClinics'],
+            'isMasterView' => $isMasterView,
+            'emptyMessage' => 'Belum ada data pembelian obat untuk filter ini.',
+        ]);
+    }
+
     public function rekapPasienPusat(Request $request): View
     {
         $selectedMonth = $this->normalizeSelectedMonth($request->string('bulan')->toString());
@@ -2034,6 +2489,128 @@ class ReportUiController extends Controller
                 ];
             })
             ->sortByDesc('total_rupiah')
+            ->values();
+    }
+
+    private function simrsStokObatRows(string $bangsalCode = 'AP', ?int $clinicProfileId = null): Collection
+    {
+        $simrs = $this->resolveSimrsConnection($clinicProfileId);
+
+        return $simrs->table('gudangbarang as gb')
+            ->join('databarang as db', 'db.kode_brng', '=', 'gb.kode_brng')
+            ->leftJoin('bangsal as b', 'b.kd_bangsal', '=', 'gb.kd_bangsal')
+            ->where('gb.kd_bangsal', $bangsalCode)
+            ->orderBy('db.nama_brng')
+            ->selectRaw('
+                gb.kode_brng,
+                COALESCE(db.nama_brng, "") as nama_brng,
+                gb.kd_bangsal,
+                COALESCE(b.nm_bangsal, "") as nm_bangsal,
+                COALESCE(gb.stok, 0) as stok_saat_ini
+            ')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'kode_brng' => filled($row->kode_brng) ? trim((string) $row->kode_brng) : '-',
+                    'nama_brng' => filled($row->nama_brng) ? trim((string) $row->nama_brng) : 'Tanpa Nama Obat',
+                    'kd_bangsal' => filled($row->kd_bangsal) ? trim((string) $row->kd_bangsal) : '-',
+                    'nm_bangsal' => filled($row->nm_bangsal) ? trim((string) $row->nm_bangsal) : '-',
+                    'stok_saat_ini' => (float) $row->stok_saat_ini,
+                ];
+            })
+            ->values();
+    }
+
+    private function simrsReturObatRows(
+        string $startDate,
+        string $endDate,
+        ?int $clinicProfileId = null
+    ): Collection {
+        $simrs = $this->resolveSimrsConnection($clinicProfileId);
+
+        return $simrs->table('returbeli as rb')
+            ->join('detreturbeli as dr', 'dr.no_retur_beli', '=', 'rb.no_retur_beli')
+            ->join('databarang as db', 'db.kode_brng', '=', 'dr.kode_brng')
+            ->leftJoin('datasuplier as s', 's.kode_suplier', '=', 'rb.kode_suplier')
+            ->leftJoin('bangsal as b', 'b.kd_bangsal', '=', 'rb.kd_bangsal')
+            ->whereBetween('rb.tgl_retur', [$startDate, $endDate])
+            ->orderByDesc('rb.tgl_retur')
+            ->orderByDesc('rb.no_retur_beli')
+            ->selectRaw('
+                rb.no_retur_beli,
+                rb.tgl_retur,
+                dr.no_faktur,
+                COALESCE(s.nama_suplier, "") as nama_suplier,
+                COALESCE(b.nm_bangsal, "") as nm_bangsal,
+                db.kode_brng,
+                COALESCE(db.nama_brng, "") as nama_brng,
+                COALESCE(dr.no_batch, "") as no_batch,
+                COALESCE(dr.jml_beli, 0) as jml_beli,
+                COALESCE(dr.jml_retur, 0) as jml_retur,
+                COALESCE(dr.h_retur, 0) as h_retur,
+                COALESCE(dr.total, 0) as total
+            ')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'no_retur_beli' => filled($row->no_retur_beli) ? trim((string) $row->no_retur_beli) : '-',
+                    'tgl_retur' => filled($row->tgl_retur) ? Carbon::parse($row->tgl_retur)->toDateString() : null,
+                    'no_faktur' => filled($row->no_faktur) ? trim((string) $row->no_faktur) : '-',
+                    'nama_suplier' => filled($row->nama_suplier) ? trim((string) $row->nama_suplier) : '-',
+                    'nm_bangsal' => filled($row->nm_bangsal) ? trim((string) $row->nm_bangsal) : '-',
+                    'kode_brng' => filled($row->kode_brng) ? trim((string) $row->kode_brng) : '-',
+                    'nama_brng' => filled($row->nama_brng) ? trim((string) $row->nama_brng) : 'Tanpa Nama Obat',
+                    'no_batch' => filled($row->no_batch) ? trim((string) $row->no_batch) : '-',
+                    'jml_beli' => (float) $row->jml_beli,
+                    'jml_retur' => (float) $row->jml_retur,
+                    'h_retur' => (float) $row->h_retur,
+                    'total' => (float) $row->total,
+                ];
+            })
+            ->values();
+    }
+
+    private function simrsPembelianObatRows(
+        string $startDate,
+        string $endDate,
+        ?int $clinicProfileId = null
+    ): Collection {
+        $simrs = $this->resolveSimrsConnection($clinicProfileId);
+
+        return $simrs->table('pemesanan as p')
+            ->join('detailpesan as dp', 'dp.no_faktur', '=', 'p.no_faktur')
+            ->join('databarang as db', 'db.kode_brng', '=', 'dp.kode_brng')
+            ->leftJoin('datasuplier as s', 's.kode_suplier', '=', 'p.kode_suplier')
+            ->whereBetween('p.tgl_pesan', [$startDate, $endDate])
+            ->orderByDesc('p.tgl_pesan')
+            ->orderByDesc('p.no_faktur')
+            ->selectRaw('
+                p.no_faktur,
+                COALESCE(p.no_order, "") as no_order,
+                p.tgl_pesan,
+                COALESCE(s.nama_suplier, "") as nama_suplier,
+                db.kode_brng,
+                COALESCE(db.nama_brng, "") as nama_brng,
+                COALESCE(dp.jumlah, 0) as jumlah,
+                COALESCE(dp.h_pesan, 0) as h_pesan,
+                COALESCE(dp.subtotal, 0) as subtotal,
+                COALESCE(p.status, "") as status
+            ')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'no_faktur' => filled($row->no_faktur) ? trim((string) $row->no_faktur) : '-',
+                    'no_order' => filled($row->no_order) ? trim((string) $row->no_order) : '-',
+                    'tgl_pesan' => filled($row->tgl_pesan) ? Carbon::parse($row->tgl_pesan)->toDateString() : null,
+                    'nama_suplier' => filled($row->nama_suplier) ? trim((string) $row->nama_suplier) : '-',
+                    'kode_brng' => filled($row->kode_brng) ? trim((string) $row->kode_brng) : '-',
+                    'nama_brng' => filled($row->nama_brng) ? trim((string) $row->nama_brng) : 'Tanpa Nama Obat',
+                    'jumlah' => (float) $row->jumlah,
+                    'h_pesan' => (float) $row->h_pesan,
+                    'subtotal' => (float) $row->subtotal,
+                    'status' => filled($row->status) ? trim((string) $row->status) : '-',
+                ];
+            })
             ->values();
     }
 
@@ -4475,6 +5052,42 @@ class ReportUiController extends Controller
             'start' => $normalizedStart,
             'end' => $normalizedEnd,
         ];
+    }
+
+    private function dateRangeLabel(string $startDate, string $endDate): string
+    {
+        $start = Carbon::parse($startDate)->locale('id');
+        $end = Carbon::parse($endDate)->locale('id');
+
+        if ($start->toDateString() === $end->toDateString()) {
+            return $start->translatedFormat('d F Y');
+        }
+
+        if ($start->year === $end->year && $start->month === $end->month) {
+            return $start->format('d') . '-' . $end->format('d') . ' ' . $start->translatedFormat('F Y');
+        }
+
+        return $start->translatedFormat('d F Y') . ' - ' . $end->translatedFormat('d F Y');
+    }
+
+    private function formatCentralMetricNumber(float|int $value): string
+    {
+        $numericValue = (float) $value;
+        $decimals = abs($numericValue - round($numericValue)) < 0.00001 ? 0 : 2;
+
+        return number_format($numericValue, $decimals, ',', '.');
+    }
+
+    private function formatCentralCurrency(float|int $value): string
+    {
+        return 'Rp ' . number_format((float) $value, 0, ',', '.');
+    }
+
+    private function normalizeBangsalCode(?string $value): string
+    {
+        $normalized = strtoupper(trim((string) $value));
+
+        return $normalized !== '' ? $normalized : 'AP';
     }
 
     private function normalizeSelectedMonth(?string $selectedMonth): Carbon
